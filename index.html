@@ -1,0 +1,232 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Visualização de Repositórios GitHub</title>
+    <link rel="stylesheet" href="src/styles.css" />
+    <script src="https://cdn.jsdelivr.net/npm/d3@7"></script>
+    <script src="https://cdn.jsdelivr.net/npm/vega@5"></script>
+    <script src="https://cdn.jsdelivr.net/npm/vega-lite@5"></script>
+    <script src="https://cdn.jsdelivr.net/npm/vega-embed@6"></script>
+    <script src="data/github-top-repositories.js"></script>
+  </head>
+  <body>
+    <header class="app-header">
+      <div>
+        <p class="eyebrow">Projeto final de Visualização de Dados</p>
+        <h1>Mapa interativo dos 1000 repositórios mais populares do GitHub</h1>
+        <p class="intro">
+          Exploração visual do dataset local github_top_repositories, combinando D3,
+          Vega-Lite e interações para investigar popularidade, domínio, linguagem, idade, tamanho e correlações.
+        </p>
+      </div>
+      <div class="summary-grid" aria-label="Resumo dos dados">
+        <div>
+          <span id="total-repos">1000</span>
+          <small>repositórios exibidos</small>
+        </div>
+        <div>
+          <span id="total-stars">-</span>
+          <small>estrelas somadas</small>
+        </div>
+        <div>
+          <span id="language-count">-</span>
+          <small>linguagens</small>
+        </div>
+      </div>
+    </header>
+
+    <main>
+      <section class="project-body">
+        <div>
+          <h2>Corpo do projeto</h2>
+          <p>
+            O objetivo é transformar o CSV local <strong>github_top_repositories.csv</strong> em uma narrativa visual sobre
+            popularidade em software livre. A unidade de análise é o repositório; a amostra exibida
+            prioriza os maiores valores de <strong>Stars Count</strong> e usa os domínios do dataset para contextualizar os projetos.
+          </p>
+        </div>
+        <div class="project-grid">
+          <article>
+            <h3>Visualizações possíveis</h3>
+            <ul>
+              <li>Ranking pesquisável dos repositórios mais populares.</li>
+              <li>Dispersão entre estrelas, forks, issues, tamanho e watchers.</li>
+              <li>Mapa de calor de correlação entre métricas numéricas.</li>
+              <li>Distribuição por domínio, linguagem, licença, ano de criação e tópicos.</li>
+              <li>Comparação entre domínios, linguagens e tipo de proprietário.</li>
+              <li>Análise de recursos ativados: wiki, pages, discussions, issues e projects.</li>
+              <li>Rede de coocorrência de tópicos para investigar comunidades tecnológicas.</li>
+            </ul>
+          </article>
+          <article>
+            <h3>Tecnologias sugeridas</h3>
+            <ul>
+              <li><strong>D3.js</strong> para gráficos customizados, escalas, brush, tooltips e tabelas.</li>
+              <li><strong>Vega-Lite</strong> para gráficos declarativos rápidos e reprodutíveis.</li>
+              <li><strong>JavaScript ES Modules</strong> para organizar transformação e interação.</li>
+              <li><strong>Node.js</strong> para pré-processar o CSV e gerar JSON enxuto.</li>
+              <li><strong>HTML/CSS responsivo</strong> para apresentação sem backend.</li>
+              <li><strong>Git/GitHub Pages</strong> para versionamento e publicação estática.</li>
+            </ul>
+          </article>
+        </div>
+      </section>
+
+      <section class="controls-band" aria-label="Filtros">
+        <label>
+          Busca
+          <input id="search-input" type="search" placeholder="Nome, linguagem, tópico ou licença" />
+        </label>
+        <label>
+          Linguagem
+          <select id="language-filter">
+            <option value="all">Todas</option>
+          </select>
+        </label>
+        <label>
+          Métrica do eixo Y
+          <select id="metric-select">
+            <option value="forks">Forks</option>
+            <option value="issues">Issues</option>
+            <option value="watchers">Watchers</option>
+            <option value="size">Tamanho</option>
+            <option value="topicCount">Quantidade de tópicos</option>
+          </select>
+        </label>
+      </section>
+
+      <section class="visual-grid">
+        <article class="panel wide">
+          <div class="panel-heading">
+            <div>
+              <h2>Popularidade e relações</h2>
+              <p>Dispersão em escala logarítmica; passe o mouse para ver detalhes.</p>
+            </div>
+          </div>
+          <div id="scatter"></div>
+        </article>
+
+        <article class="panel">
+          <div class="panel-heading">
+            <div>
+              <h2>Correlação</h2>
+              <p>Coeficiente de Pearson entre variáveis numéricas.</p>
+            </div>
+          </div>
+          <div id="correlation-heatmap"></div>
+        </article>
+
+        <article class="panel">
+          <div class="panel-heading">
+            <div>
+              <h2>Linguagens</h2>
+              <p>Distribuição dos 1000 repositórios por linguagem principal.</p>
+            </div>
+          </div>
+          <div id="language-chart"></div>
+        </article>
+
+        <article class="panel">
+          <div class="panel-heading">
+            <div>
+              <h2>Evolução por ano</h2>
+              <p>Quantidade de projetos e estrelas médias por ano de criação.</p>
+            </div>
+          </div>
+          <div id="year-chart"></div>
+        </article>
+
+        <article class="panel">
+          <div class="panel-heading">
+            <div>
+              <h2>Tópicos frequentes</h2>
+              <p>Temas mais recorrentes entre os repositórios filtrados.</p>
+            </div>
+          </div>
+          <div id="topics-chart"></div>
+        </article>
+
+        <article class="panel">
+          <div class="panel-heading">
+            <div>
+              <h2>Domínios</h2>
+              <p>Quantidade de repositórios por domínio do dataset.</p>
+            </div>
+          </div>
+          <div id="domain-chart"></div>
+        </article>
+
+        <article class="panel">
+          <div class="panel-heading">
+            <div>
+              <h2>Stars por domínio</h2>
+              <p>Média de estrelas nos domínios com mais repositórios.</p>
+            </div>
+          </div>
+          <div id="domain-stars-chart"></div>
+        </article>
+
+        <article class="panel wide">
+          <div class="panel-heading">
+            <div>
+              <h2>Domínio × linguagem</h2>
+              <p>Mapa de calor cruzando domínio e linguagem principal.</p>
+            </div>
+          </div>
+          <div id="domain-language-heatmap"></div>
+        </article>
+
+        <article class="panel">
+          <div class="panel-heading">
+            <div>
+              <h2>Tipo de proprietário</h2>
+              <p>Comparação entre usuários e organizações.</p>
+            </div>
+          </div>
+          <div id="owner-type-chart"></div>
+        </article>
+
+        <article class="panel">
+          <div class="panel-heading">
+            <div>
+              <h2>Recursos ativados</h2>
+              <p>Projetos com wiki, pages e projects habilitados.</p>
+            </div>
+          </div>
+          <div id="features-chart"></div>
+        </article>
+
+        <article class="panel wide">
+          <div class="panel-heading">
+            <div>
+              <h2>Top repositórios</h2>
+              <p>Os 1000 mais populares estão disponíveis para busca e comparação.</p>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Repositório</th>
+                  <th>Domínio</th>
+                  <th>Linguagem</th>
+                  <th>Stars</th>
+                  <th>Forks</th>
+                  <th>Issues</th>
+                  <th>Licença</th>
+                </tr>
+              </thead>
+              <tbody id="repo-table"></tbody>
+            </table>
+          </div>
+        </article>
+      </section>
+    </main>
+
+    <div id="tooltip" role="status" aria-live="polite"></div>
+    <script type="module" src="src/app.js"></script>
+  </body>
+</html>
