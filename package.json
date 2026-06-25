@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "prepare-data": "node scripts/prepare-data.mjs",
+    "prepare-contributors": "node scripts/prepare-contributors.mjs",
     "serve": "node scripts/static-server.mjs"
   }
 }

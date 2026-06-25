@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1800" height="1200" viewBox="0 0 1800 1200" role="img" aria-label="Abstract data network background">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#dfe9e3"/>
+      <stop offset="0.48" stop-color="#f7f8f4"/>
+      <stop offset="1" stop-color="#d8e2ef"/>
+    </linearGradient>
+    <filter id="soft">
+      <feGaussianBlur stdDeviation="1.2"/>
+    </filter>
+  </defs>
+  <rect width="1800" height="1200" fill="url(#bg)"/>
+  <g opacity="0.36" stroke="#167a72" stroke-width="1.4" fill="none">
+    <path d="M120 230 C330 120 520 290 760 170 S1210 40 1540 180"/>
+    <path d="M80 760 C360 560 620 810 890 650 S1370 460 1710 620"/>
+    <path d="M210 980 C460 900 640 1030 880 910 S1320 760 1610 930"/>
+  </g>
+  <g opacity="0.28" stroke="#356db6" stroke-width="1.2" fill="none">
+    <path d="M300 90 L520 210 L750 150 L980 260 L1220 120 L1510 260"/>
+    <path d="M180 520 L430 440 L670 560 L910 470 L1180 590 L1550 500"/>
+    <path d="M380 1110 L620 960 L860 1050 L1090 940 L1420 1040"/>
+  </g>
+  <g filter="url(#soft)">
+    <g fill="#167a72" opacity="0.42">
+      <circle cx="120" cy="230" r="8"/><circle cx="330" cy="160" r="5"/><circle cx="520" cy="290" r="7"/>
+      <circle cx="760" cy="170" r="6"/><circle cx="1210" cy="80" r="8"/><circle cx="1540" cy="180" r="6"/>
+      <circle cx="80" cy="760" r="7"/><circle cx="620" cy="810" r="5"/><circle cx="890" cy="650" r="8"/>
+      <circle cx="1370" cy="460" r="7"/><circle cx="1710" cy="620" r="6"/>
+    </g>
+    <g fill="#c7532d" opacity="0.35">
+      <circle cx="300" cy="90" r="6"/><circle cx="520" cy="210" r="9"/><circle cx="980" cy="260" r="6"/>
+      <circle cx="1180" cy="590" r="8"/><circle cx="1420" cy="1040" r="7"/>
+    </g>
+    <g fill="#356db6" opacity="0.36">
+      <circle cx="430" cy="440" r="8"/><circle cx="670" cy="560" r="6"/><circle cx="910" cy="470" r="9"/>
+      <circle cx="1090" cy="940" r="6"/><circle cx="1610" cy="930" r="8"/>
+    </g>
+  </g>
+</svg>

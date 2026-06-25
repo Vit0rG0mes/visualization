@@ -3,226 +3,555 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Visualização de Repositórios GitHub</title>
+    <title>Narrativa Visual de Repositórios GitHub</title>
     <link rel="stylesheet" href="src/styles.css" />
     <script src="https://cdn.jsdelivr.net/npm/d3@7"></script>
-    <script src="https://cdn.jsdelivr.net/npm/vega@5"></script>
-    <script src="https://cdn.jsdelivr.net/npm/vega-lite@5"></script>
-    <script src="https://cdn.jsdelivr.net/npm/vega-embed@6"></script>
     <script src="data/github-top-repositories.js"></script>
+    <script src="data/top-contributors-history.js"></script>
   </head>
   <body>
-    <header class="app-header">
-      <div>
-        <p class="eyebrow">Projeto final de Visualização de Dados</p>
-        <h1>Mapa interativo dos 1000 repositórios mais populares do GitHub</h1>
-        <p class="intro">
-          Exploração visual do dataset local github_top_repositories, combinando D3,
-          Vega-Lite e interações para investigar popularidade, domínio, linguagem, idade, tamanho e correlações.
-        </p>
-      </div>
-      <div class="summary-grid" aria-label="Resumo dos dados">
-        <div>
-          <span id="total-repos">1000</span>
-          <small>repositórios exibidos</small>
-        </div>
-        <div>
-          <span id="total-stars">-</span>
-          <small>estrelas somadas</small>
-        </div>
-        <div>
-          <span id="language-count">-</span>
-          <small>linguagens</small>
-        </div>
+    <div class="parallax-bg" aria-hidden="true"></div>
+
+    <header class="hero">
+      <p class="eyebrow">Projeto final de Visualização de Dados</p>
+      <h1>Visualização Interativa dos 1000 Repositórios mais populares do GitHub</h1>
+      <p class="intro">
+        Uma visualização interativa sobre popularidade, manutenção, domínios tecnológicos e padrões de adoção
+        nos 1000 repositórios mais estrelados do dataset local <a href="https://www.kaggle.com/datasets/muhammadaqeelkabir/top-github-repositories">Top GitHub Repositories (2026)</a>. Dados obtidos até Abril de 2026.
+      </p>
+      <div class="hero-actions">
+        <a href="#story" class="primary-link">Começar narrativa</a>
+        <a href="#explore" class="secondary-link">Explorar gráficos</a>
       </div>
     </header>
 
     <main>
-      <section class="project-body">
+      <section class="infographic-strip" aria-label="Resumo do dataset">
+        <article>
+          <span id="total-repos">-</span>
+          <small>repositórios analisados</small>
+        </article>
+        <article>
+          <span id="total-stars">-</span>
+          <small>estrelas somadas</small>
+        </article>
+        <article>
+          <span id="top-domain">-</span>
+          <small>domínio mais frequente</small>
+        </article>
+        <article>
+          <span id="org-share">-</span>
+          <small>mantidos por organizações</small>
+        </article>
+      </section>
+
+      <section class="story-intro">
         <div>
-          <h2>Corpo do projeto</h2>
+          <h2>Como ler essa paisagem</h2>
           <p>
-            O objetivo é transformar o CSV local <strong>github_top_repositories.csv</strong> em uma narrativa visual sobre
-            popularidade em software livre. A unidade de análise é o repositório; a amostra exibida
-            prioriza os maiores valores de <strong>Stars Count</strong> e usa os domínios do dataset para contextualizar os projetos.
+            Cada repositório é uma combinação de sinais: estrelas indicam visibilidade, forks sugerem
+            reutilização, issues indicam demanda de manutenção, e domínios ajudam a entender em quais áreas
+            esses sinais se concentram.
           </p>
         </div>
-        <div class="project-grid">
+        <div class="mini-infographics">
           <article>
-            <h3>Visualizações possíveis</h3>
-            <ul>
-              <li>Ranking pesquisável dos repositórios mais populares.</li>
-              <li>Dispersão entre estrelas, forks, issues, tamanho e watchers.</li>
-              <li>Mapa de calor de correlação entre métricas numéricas.</li>
-              <li>Distribuição por domínio, linguagem, licença, ano de criação e tópicos.</li>
-              <li>Comparação entre domínios, linguagens e tipo de proprietário.</li>
-              <li>Análise de recursos ativados: wiki, pages, discussions, issues e projects.</li>
-              <li>Rede de coocorrência de tópicos para investigar comunidades tecnológicas.</li>
-            </ul>
+            <strong id="median-stars">-</strong>
+            <span>mediana de estrelas</span>
           </article>
           <article>
-            <h3>Tecnologias sugeridas</h3>
-            <ul>
-              <li><strong>D3.js</strong> para gráficos customizados, escalas, brush, tooltips e tabelas.</li>
-              <li><strong>Vega-Lite</strong> para gráficos declarativos rápidos e reprodutíveis.</li>
-              <li><strong>JavaScript ES Modules</strong> para organizar transformação e interação.</li>
-              <li><strong>Node.js</strong> para pré-processar o CSV e gerar JSON enxuto.</li>
-              <li><strong>HTML/CSS responsivo</strong> para apresentação sem backend.</li>
-              <li><strong>Git/GitHub Pages</strong> para versionamento e publicação estática.</li>
-            </ul>
+            <strong id="top-language">-</strong>
+            <span>linguagem mais comum</span>
+          </article>
+          <article>
+            <strong id="active-projects">-</strong>
+            <span>com projects habilitado</span>
           </article>
         </div>
       </section>
 
-      <section class="controls-band" aria-label="Filtros">
-        <label>
-          Busca
-          <input id="search-input" type="search" placeholder="Nome, linguagem, tópico ou licença" />
-        </label>
-        <label>
-          Linguagem
-          <select id="language-filter">
-            <option value="all">Todas</option>
-          </select>
-        </label>
-        <label>
-          Métrica do eixo Y
-          <select id="metric-select">
-            <option value="forks">Forks</option>
-            <option value="issues">Issues</option>
-            <option value="watchers">Watchers</option>
-            <option value="size">Tamanho</option>
-            <option value="topicCount">Quantidade de tópicos</option>
-          </select>
-        </label>
+      <section id="story" class="scrolly">
+        <div class="story-visual">
+          <div class="sticky-card">
+            <div class="chart-heading">
+              <p class="eyebrow">Scrollytelling</p>
+              <h2 id="story-title">Popularidade e reutilização</h2>
+              <p id="story-caption">As relações mudam de acordo com a lente narrativa.</p>
+            </div>
+            <div id="story-chart"></div>
+            <div class="story-legend" id="story-legend"></div>
+          </div>
+        </div>
+
+        <div class="story-steps">
+          <article class="story-step is-active" data-view="popularity">
+            <span>1</span>
+            <h3>Popularidade se espalha por reutilização</h3>
+            <p>
+              O primeiro recorte compara estrelas e forks. Projetos que aparecem no alto e à direita são
+              simultaneamente conhecidos e reutilizados por muitas pessoas.
+            </p>
+          </article>
+          <article class="story-step" data-view="scale">
+            <span>2</span>
+            <h3>Tamanho não explica tudo</h3>
+            <p>
+              Repositórios grandes podem concentrar muita atividade, mas projetos menores também aparecem
+              entre os mais populares quando resolvem problemas bem definidos.
+            </p>
+          </article>
+          <article class="story-step" data-view="age">
+            <span>3</span>
+            <h3>Projetos recentes também alcançam massa crítica</h3>
+            <p>
+              Ao cruzar ano de criação e estrelas, a narrativa separa projetos consolidados de iniciativas
+              recentes que cresceram rapidamente.
+            </p>
+          </article>
+          <article class="story-step" data-view="maintenance">
+            <span>4</span>
+            <h3>Popularidade também gera manutenção</h3>
+            <p>
+              Issues abertas mostram uma dimensão operacional: muitos repositórios populares carregam uma
+              fila expressiva de demandas, bugs e discussões técnicas.
+            </p>
+          </article>
+        </div>
       </section>
 
-      <section class="visual-grid">
-        <article class="panel wide">
-          <div class="panel-heading">
-            <div>
-              <h2>Popularidade e relações</h2>
-              <p>Dispersão em escala logarítmica; passe o mouse para ver detalhes.</p>
-            </div>
-          </div>
-          <div id="scatter"></div>
-        </article>
+      <section id="explore" class="explore">
+        <div class="section-heading">
+          <p class="eyebrow">Exploração guiada</p>
+          <h2>Depois da narrativa, investigue os detalhes</h2>
+          <p>
+            Use os filtros para recortar a amostra. Todos os gráficos abaixo respondem à busca, domínio e linguagem.
+          </p>
+        </div>
 
-        <article class="panel">
-          <div class="panel-heading">
-            <div>
-              <h2>Correlação</h2>
-              <p>Coeficiente de Pearson entre variáveis numéricas.</p>
-            </div>
-          </div>
-          <div id="correlation-heatmap"></div>
-        </article>
+        <section class="controls-band" aria-label="Filtros">
+          <label>
+            Busca
+            <input id="search-input" type="search" placeholder="Nome, domínio, linguagem, tópico ou licença" />
+          </label>
+          <label>
+            Domínio
+            <select id="domain-filter">
+              <option value="all">Todos</option>
+            </select>
+          </label>
+          <label>
+            Linguagem
+            <select id="language-filter">
+              <option value="all">Todas</option>
+            </select>
+          </label>
+        </section>
 
-        <article class="panel">
-          <div class="panel-heading">
-            <div>
-              <h2>Linguagens</h2>
-              <p>Distribuição dos 1000 repositórios por linguagem principal.</p>
+        <section class="visual-grid">
+          <article class="panel wide">
+            <div class="panel-heading">
+              <div>
+                <h2>Popularidade e relações</h2>
+                <p>Dispersão interativa entre estrelas e forks, colorida por domínio.</p>
+              </div>
             </div>
-          </div>
-          <div id="language-chart"></div>
-        </article>
+            <div id="scatter"></div>
+          </article>
 
-        <article class="panel">
-          <div class="panel-heading">
-            <div>
-              <h2>Evolução por ano</h2>
-              <p>Quantidade de projetos e estrelas médias por ano de criação.</p>
+          <article class="panel">
+            <div class="panel-heading">
+              <div>
+                <h2>Domínios</h2>
+                <p>Quantidade de repositórios por domínio.</p>
+              </div>
             </div>
-          </div>
-          <div id="year-chart"></div>
-        </article>
+            <div id="domain-chart"></div>
+          </article>
 
-        <article class="panel">
-          <div class="panel-heading">
-            <div>
-              <h2>Tópicos frequentes</h2>
-              <p>Temas mais recorrentes entre os repositórios filtrados.</p>
+          <article class="panel">
+            <div class="panel-heading">
+              <div>
+                <h2>Linguagens</h2>
+                <p>Linguagens principais mais frequentes.</p>
+              </div>
             </div>
-          </div>
-          <div id="topics-chart"></div>
-        </article>
+            <div id="language-chart"></div>
+          </article>
 
-        <article class="panel">
-          <div class="panel-heading">
-            <div>
-              <h2>Domínios</h2>
-              <p>Quantidade de repositórios por domínio do dataset.</p>
+          <article class="panel wide">
+            <div class="panel-heading">
+              <div>
+                <h2>Domínio × linguagem</h2>
+                <p>Mapa de calor cruzando áreas do dataset e linguagens.</p>
+              </div>
             </div>
-          </div>
-          <div id="domain-chart"></div>
-        </article>
+            <div id="domain-language-heatmap"></div>
+          </article>
 
-        <article class="panel">
-          <div class="panel-heading">
-            <div>
-              <h2>Stars por domínio</h2>
-              <p>Média de estrelas nos domínios com mais repositórios.</p>
+          <article class="panel">
+            <div class="panel-heading">
+              <div>
+                <h2>Correlação</h2>
+                <p>Coeficiente de Pearson entre métricas numéricas.</p>
+              </div>
             </div>
-          </div>
-          <div id="domain-stars-chart"></div>
-        </article>
+            <div id="correlation-heatmap"></div>
+          </article>
 
-        <article class="panel wide">
-          <div class="panel-heading">
-            <div>
-              <h2>Domínio × linguagem</h2>
-              <p>Mapa de calor cruzando domínio e linguagem principal.</p>
+          <article class="panel">
+            <div class="panel-heading">
+              <div>
+                <h2>Evolução por ano</h2>
+                <p>Projetos por ano de criação.</p>
+              </div>
             </div>
-          </div>
-          <div id="domain-language-heatmap"></div>
-        </article>
+            <div id="year-chart"></div>
+          </article>
 
-        <article class="panel">
-          <div class="panel-heading">
-            <div>
-              <h2>Tipo de proprietário</h2>
-              <p>Comparação entre usuários e organizações.</p>
+          <article class="panel">
+            <div class="panel-heading">
+              <div>
+                <h2>Tópicos frequentes</h2>
+                <p>Temas mais recorrentes nos repositórios filtrados.</p>
+              </div>
             </div>
-          </div>
-          <div id="owner-type-chart"></div>
-        </article>
+            <div id="topics-chart"></div>
+          </article>
 
-        <article class="panel">
-          <div class="panel-heading">
-            <div>
-              <h2>Recursos ativados</h2>
-              <p>Projetos com wiki, pages e projects habilitados.</p>
+          <article class="panel">
+            <div class="panel-heading">
+              <div>
+                <h2>Tipo de proprietário</h2>
+                <p>Comparação entre usuários e organizações.</p>
+              </div>
             </div>
-          </div>
-          <div id="features-chart"></div>
-        </article>
+            <div id="owner-type-chart"></div>
+          </article>
 
-        <article class="panel wide">
-          <div class="panel-heading">
-            <div>
-              <h2>Top repositórios</h2>
-              <p>Os 1000 mais populares estão disponíveis para busca e comparação.</p>
+          <section class="contributor-story-panel" aria-label="Narrativa dos maiores contribuidores">
+            <div class="panel-heading contributor-heading contributor-story-heading">
+              <div>
+                <p class="eyebrow">Scrollytelling dos contribuidores</p>
+                <h2>Como o trabalho se organiza nos maiores projetos</h2>
+                <p>
+                  A leitura abaixo resume os 100 maiores contribuidores dos 10 repositórios públicos mais populares
+                  por estrelas, conectando volume, concentração, natureza do trabalho e ritmo temporal.
+                </p>
+              </div>
+              <div class="contributor-stats contributor-story-stats" aria-label="Resumo do histórico de contribuidores">
+                <article>
+                  <strong id="contributor-story-total">-</strong>
+                  <span>contribuidores analisados</span>
+                </article>
+                <article>
+                  <strong id="contributor-story-repositories">-</strong>
+                  <span>repositórios públicos</span>
+                </article>
+                <article>
+                  <strong id="contributor-story-commits">-</strong>
+                  <span>commits históricos</span>
+                </article>
+                <article>
+                  <strong id="contributor-story-bus-factor">-</strong>
+                  <span>contribuidores chegam a 80%</span>
+                </article>
+              </div>
             </div>
-          </div>
-          <div class="table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th>#</th>
-                  <th>Repositório</th>
-                  <th>Domínio</th>
-                  <th>Linguagem</th>
-                  <th>Stars</th>
-                  <th>Forks</th>
-                  <th>Issues</th>
-                  <th>Licença</th>
-                </tr>
-              </thead>
-              <tbody id="repo-table"></tbody>
-            </table>
-          </div>
-        </article>
+
+            <div class="contributor-scrolly">
+              <div class="contributor-story-visual">
+                <div class="sticky-card contributor-story-card">
+                  <div class="chart-heading">
+                    <p class="eyebrow">Contribuições em foco</p>
+                    <h2 id="contributor-story-title">Onde o trabalho se concentra</h2>
+                    <p id="contributor-story-caption">Volume, concentração, natureza do trabalho e ritmo temporal aparecem em sequência.</p>
+                  </div>
+                  <div id="contributor-story-chart"></div>
+                  <div class="story-legend" id="contributor-story-legend"></div>
+                </div>
+              </div>
+
+              <div class="contributor-story-steps">
+                <article class="story-step contributor-story-step is-active" data-contributor-view="repositories">
+                  <span>1</span>
+                  <h3>O esforço aparece de forma desigual entre projetos</h3>
+                  <p>
+                    Primeiro, a narrativa compara o volume de commits por repositório. Isso mostra quais projetos
+                    concentram mais atividade entre os maiores contribuidores.
+                  </p>
+                </article>
+                <article class="story-step contributor-story-step" data-contributor-view="concentration">
+                  <span>2</span>
+                  <h3>A concentração revela dependência de conhecimento</h3>
+                  <p>
+                    A curva acumulada mostra quantas pessoas são necessárias para alcançar 80% dos commits da
+                    amostra, aproximando o risco de concentração do trabalho.
+                  </p>
+                </article>
+                <article class="story-step contributor-story-step" data-contributor-view="nature">
+                  <span>3</span>
+                  <h3>Adicionar e remover contam histórias diferentes</h3>
+                  <p>
+                    Adições apontam expansão de funcionalidades; remoções sinalizam limpeza, otimização ou
+                    refatoração. O contraste por repositório antecipa a leitura detalhada dos contribuidores.
+                  </p>
+                </article>
+                <article class="story-step contributor-story-step" data-contributor-view="rhythm">
+                  <span>4</span>
+                  <h3>O ritmo também muda ao longo do tempo</h3>
+                  <p>
+                    A série temporal mostra meses de maior intensidade. Como o CSV traz linhas históricas por
+                    contribuidor, adições e remoções mensais são estimadas pelo peso dos commits de cada mês.
+                  </p>
+                </article>
+              </div>
+            </div>
+          </section>
+
+          <article class="panel wide contributor-panel">
+            <div class="panel-heading contributor-heading">
+              <div>
+                <p class="eyebrow">Contribuição de código</p>
+                <h2>Commits, adições e remoções por contribuidor</h2>
+                <p>
+                  Cada bolha representa um dos maiores contribuidores dos 10 repositórios públicos mais populares por estrelas.
+                  A escala logarítmica evita que contribuidores massivos comprimam o restante da distribuição.
+                </p>
+              </div>
+              <div class="contributor-stats" aria-label="Resumo dos contribuidores">
+                <article>
+                  <strong id="contributor-count">-</strong>
+                  <span>contribuidores</span>
+                </article>
+                <article>
+                  <strong id="contributor-repo-count">-</strong>
+                  <span>repositórios</span>
+                </article>
+                <article>
+                  <strong id="contributor-commit-total">-</strong>
+                  <span>commits históricos</span>
+                </article>
+              </div>
+            </div>
+            <div class="identity-note">
+              <span class="identity-line-sample"></span>
+              <p>
+                Linha X = Y: abaixo/direita estão contribuidores que adicionaram mais código; acima/esquerda estão
+                perfis com mais remoções, refatorações ou limpezas.
+              </p>
+            </div>
+            <div id="contributors-bubble"></div>
+            <div class="story-legend" id="contributors-legend"></div>
+          </article>
+
+          <article class="panel wide contributor-panel">
+            <div class="panel-heading contributor-heading">
+              <div>
+                <p class="eyebrow">Perfis de contribuição</p>
+                <h2>Volume de trabalho vs. estilo de contribuição</h2>
+                <p>
+                  O gráfico cruza quantidade de commits com linhas alteradas para revelar quem entrega muitas
+                  mudanças pequenas, quem concentra alterações massivas e quem aparece como outlier.
+                </p>
+              </div>
+              <div class="contributor-stats compact-stats" aria-label="Resumo do estilo de contribuição">
+                <article>
+                  <strong id="workstyle-outlier">-</strong>
+                  <span>maior volume alterado</span>
+                </article>
+                <article>
+                  <strong id="workstyle-median-lines">-</strong>
+                  <span>mediana de linhas por commit</span>
+                </article>
+                <article>
+                  <strong id="workstyle-active-span">-</strong>
+                  <span>maior janela ativa</span>
+                </article>
+              </div>
+            </div>
+            <div id="workstyle-scatter"></div>
+            <div class="story-legend" id="workstyle-legend"></div>
+          </article>
+
+          <article class="panel wide contributor-panel">
+            <div class="panel-heading">
+              <div>
+                <p class="eyebrow">Sazonalidade</p>
+                <h2>Ritmo e produtividade ao longo do tempo</h2>
+                <p>
+                  A linha temporal agrega os commits mensais dos contribuidores e estima adições e remoções a
+                  partir da participação de cada mês no histórico do contribuidor.
+                </p>
+              </div>
+            </div>
+            <div class="estimation-note">
+              <strong>Leitura dos dados:</strong>
+              <span>
+                commits são mensais; adições e remoções temporais são estimativas proporcionais, pois o CSV traz
+                esses campos como totais históricos por contribuidor.
+              </span>
+            </div>
+            <div id="contributor-timeline"></div>
+            <div class="story-legend" id="contributor-timeline-legend"></div>
+          </article>
+
+          <article class="panel wide contributor-panel">
+            <div class="panel-heading contributor-heading">
+              <div>
+                <p class="eyebrow">Calendário de atividade</p>
+                <h2>Mapa de Calor Mensal</h2>
+                <p>
+                  O calendário destaca meses mais intensos e permite alternar entre commits, adições, remoções e
+                  linhas modificadas.
+                </p>
+              </div>
+              <label class="metric-control">
+                Métrica
+                <select id="calendar-metric">
+                  <option value="changes">Linhas modificadas</option>
+                  <option value="commits">Commits</option>
+                  <option value="additions">Adições estimadas</option>
+                  <option value="removals">Remoções estimadas</option>
+                </select>
+              </label>
+            </div>
+            <div id="contributor-calendar"></div>
+            <div class="story-legend" id="contributor-calendar-legend"></div>
+          </article>
+
+          <article class="panel wide contributor-panel">
+            <div class="panel-heading contributor-heading">
+              <div>
+                <p class="eyebrow">Concentração de conhecimento</p>
+                <h2>Distribuição e risco pelo Bus Factor</h2>
+                <p>
+                  A curva de Pareto mostra quantos contribuidores concentram 80% do trabalho. A rosca evidencia a
+                  participação dos principais nomes no repositório ou na amostra selecionada.
+                </p>
+              </div>
+              <div class="concentration-controls">
+                <label class="metric-control">
+                  Repositório
+                  <select id="pareto-repository">
+                    <option value="all">Todos os repositórios</option>
+                  </select>
+                </label>
+                <label class="metric-control">
+                  Métrica
+                  <select id="pareto-metric">
+                    <option value="commits">Commits</option>
+                    <option value="changes">Linhas alteradas</option>
+                    <option value="additions">Adições</option>
+                    <option value="removals">Remoções</option>
+                  </select>
+                </label>
+              </div>
+            </div>
+            <div class="contributor-stats compact-stats concentration-stats" aria-label="Resumo da concentração">
+              <article>
+                <strong id="pareto-threshold-count">-</strong>
+                <span>contribuidores chegam a 80%</span>
+              </article>
+              <article>
+                <strong id="pareto-threshold-share">-</strong>
+                <span>da base de contribuidores</span>
+              </article>
+              <article>
+                <strong id="pareto-top-share">-</strong>
+                <span>participação dos 5 maiores</span>
+              </article>
+            </div>
+            <div class="pareto-layout">
+              <div>
+                <h3>Curva de Pareto</h3>
+                <div id="pareto-chart"></div>
+                <div class="story-legend" id="pareto-legend"></div>
+              </div>
+              <div>
+                <h3>Participação dos principais contribuidores</h3>
+                <div id="pareto-donut"></div>
+                <div class="story-legend" id="pareto-donut-legend"></div>
+              </div>
+            </div>
+          </article>
+
+          <article class="panel wide contributor-panel">
+            <div class="panel-heading contributor-heading">
+              <div>
+                <p class="eyebrow">Natureza do trabalho</p>
+                <h2>Expansão vs. refatoração</h2>
+                <p>
+                  O gráfico divergente posiciona adições à direita e remoções à esquerda. Assim, fica claro quando
+                  um contribuidor ou período expande funcionalidades ou concentra limpeza e refatoração.
+                </p>
+              </div>
+              <div class="concentration-controls">
+                <label class="metric-control">
+                  Repositório
+                  <select id="nature-repository">
+                    <option value="all">Todos os repositórios</option>
+                  </select>
+                </label>
+                <label class="metric-control">
+                  Agrupar por
+                  <select id="nature-group">
+                    <option value="contributors">Contribuidor</option>
+                    <option value="months">Mês</option>
+                  </select>
+                </label>
+              </div>
+            </div>
+            <div class="contributor-stats compact-stats concentration-stats" aria-label="Resumo da natureza do trabalho">
+              <article>
+                <strong id="nature-ratio">-</strong>
+                <span>proporção adições : remoções</span>
+              </article>
+              <article>
+                <strong id="nature-dominant">-</strong>
+                <span>perfil dominante</span>
+              </article>
+              <article>
+                <strong id="nature-balance">-</strong>
+                <span>saldo líquido de linhas</span>
+              </article>
+            </div>
+            <div class="estimation-note">
+              <strong>Leitura dos dados:</strong>
+              <span>
+                por contribuidor, os totais são históricos; por mês, adições e remoções são estimadas a partir do
+                peso dos commits mensais de cada contribuidor.
+              </span>
+            </div>
+            <div id="nature-diverging"></div>
+            <div class="story-legend" id="nature-legend"></div>
+          </article>
+
+          <article class="panel wide">
+            <div class="panel-heading">
+              <div>
+                <h2>Top repositórios</h2>
+                <p>Ranking filtrável dos repositórios apresentados na narrativa.</p>
+              </div>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>#</th>
+                    <th>Repositório</th>
+                    <th>Domínio</th>
+                    <th>Linguagem</th>
+                    <th>Stars</th>
+                    <th>Forks</th>
+                    <th>Issues</th>
+                    <th>Licença</th>
+                  </tr>
+                </thead>
+                <tbody id="repo-table"></tbody>
+              </table>
+            </div>
+          </article>
+        </section>
       </section>
     </main>
 
