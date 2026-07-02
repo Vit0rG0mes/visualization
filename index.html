@@ -8,25 +8,33 @@
     <script src="https://cdn.jsdelivr.net/npm/d3@7"></script>
     <script src="data/github-top-repositories.js"></script>
     <script src="data/top-contributors-history.js"></script>
+    <script src="data/repository-snapshots.js"></script>
   </head>
   <body>
     <div class="parallax-bg" aria-hidden="true"></div>
 
     <header class="hero">
       <p class="eyebrow">Projeto final de Visualização de Dados</p>
-      <h1>Visualização Interativa dos 1000 Repositórios mais populares do GitHub</h1>
+      <h1>Repositórios públicos mais populares do GitHub</h1>
       <p class="intro">
         Uma visualização interativa sobre popularidade, manutenção, domínios tecnológicos e padrões de adoção
-        nos 1000 repositórios mais estrelados do dataset local <a href="https://www.kaggle.com/datasets/muhammadaqeelkabir/top-github-repositories">Top GitHub Repositories (2026)</a>. Dados obtidos até Abril de 2026.
+        nos repositórios únicos mais estrelados do dataset local <a href="https://www.kaggle.com/datasets/muhammadaqeelkabir/top-github-repositories">Top GitHub Repositories (2026)</a>. Dados obtidos até abril de 2026.
       </p>
       <div class="hero-actions">
         <a href="#story" class="primary-link">Começar narrativa</a>
-        <a href="#explore" class="secondary-link">Explorar gráficos</a>
+        <a href="#ecosystem" class="secondary-link">Explorar gráficos</a>
       </div>
     </header>
 
-    <main>
-      <section class="infographic-strip" aria-label="Resumo do dataset">
+    <nav class="chapter-nav" aria-label="Capítulos da análise">
+      <a href="#overview">Visão geral</a>
+      <a href="#ecosystem">Ecossistema</a>
+      <a href="#contributors">Contribuidores</a>
+      <a href="#ranking">Ranking</a>
+    </nav>
+
+    <main id="overview">
+      <section class="infographic-strip" data-chapter="overview" aria-label="Resumo do dataset">
         <article>
           <span id="total-repos">-</span>
           <small>repositórios analisados</small>
@@ -43,9 +51,47 @@
           <span id="org-share">-</span>
           <small>mantidos por organizações</small>
         </article>
+        <article>
+          <span id="healthy-projects">-</span>
+          <small>com saúde alta</small>
+        </article>
       </section>
 
-      <section class="story-intro">
+      <section class="dataset-meta" aria-labelledby="dataset-meta-title">
+        <div>
+          <p class="eyebrow">Transparência dos dados</p>
+          <h2 id="dataset-meta-title">Escopo e limitações</h2>
+        </div>
+        <dl>
+          <div>
+            <dt>Repositórios</dt>
+            <dd id="repository-collection-date">-</dd>
+          </div>
+          <div>
+            <dt>Contribuidores</dt>
+            <dd id="contributor-collection-date">-</dd>
+          </div>
+          <div>
+            <dt>Preparação</dt>
+            <dd id="preparation-date">-</dd>
+          </div>
+          <div>
+            <dt>Registros únicos</dt>
+            <dd id="unique-records">-</dd>
+          </div>
+          <div>
+            <dt>Linhas na fonte</dt>
+            <dd id="source-records">-</dd>
+          </div>
+        </dl>
+        <p id="dataset-limitations" class="limitations-copy">
+          Repositórios: <a href="https://www.kaggle.com/datasets/muhammadaqeelkabir/top-github-repositories">dataset Kaggle</a>.
+          Contribuidores: <a href="https://docs.github.com/rest/metrics/statistics">GitHub REST API</a>. A preparação é
+          local. Rankings são retratos temporais; correlações não indicam causalidade e linhas não comprovam refatoração.
+        </p>
+      </section>
+
+      <section class="story-intro" data-chapter="overview">
         <div>
           <h2>Como ler essa paisagem</h2>
           <p>
@@ -70,7 +116,7 @@
         </div>
       </section>
 
-      <section id="story" class="scrolly">
+      <section id="story" class="scrolly" data-chapter="overview">
         <div class="story-visual">
           <div class="sticky-card">
             <div class="chart-heading">
@@ -119,7 +165,7 @@
         </div>
       </section>
 
-      <section id="explore" class="explore">
+      <section id="ecosystem" class="explore" data-chapter="ecosystem">
         <div class="section-heading">
           <p class="eyebrow">Exploração guiada</p>
           <h2>Depois da narrativa, investigue os detalhes</h2>
@@ -140,14 +186,45 @@
             </select>
           </label>
           <label>
+            Segundo domínio
+            <select id="secondary-domain-filter">
+              <option value="all">Qualquer</option>
+            </select>
+          </label>
+          <label>
             Linguagem
             <select id="language-filter">
               <option value="all">Todas</option>
             </select>
           </label>
+          <div class="export-actions" role="group" aria-label="Exportar recorte atual">
+            <span>Exportar</span>
+            <div>
+              <button id="export-csv" type="button">CSV</button>
+              <button id="export-png" type="button">PNG</button>
+            </div>
+            <span id="export-status" class="visually-hidden" aria-live="polite"></span>
+          </div>
         </section>
 
         <section class="visual-grid">
+          <article class="panel wide comparison-panel">
+            <div class="panel-heading contributor-heading">
+              <div>
+                <p class="eyebrow">Comparação direta</p>
+                <h2>Dois ou três repositórios lado a lado</h2>
+                <p>As barras mostram índices relativos; os valores reais aparecem no resumo de cada projeto.</p>
+              </div>
+              <div class="comparison-controls">
+                <label>Repositório 1<select id="compare-repo-1"></select></label>
+                <label>Repositório 2<select id="compare-repo-2"></select></label>
+                <label>Repositório 3<select id="compare-repo-3"><option value="">Nenhum</option></select></label>
+              </div>
+            </div>
+            <div id="repository-comparison"></div>
+            <div id="comparison-details" class="comparison-details"></div>
+          </article>
+
           <article class="panel wide">
             <div class="panel-heading">
               <div>
@@ -186,6 +263,16 @@
               </div>
             </div>
             <div id="domain-language-heatmap"></div>
+          </article>
+
+          <article class="panel wide">
+            <div class="panel-heading">
+              <div>
+                <h2>Sobreposição entre domínios</h2>
+                <p>Pares de áreas compartilhados pelos projetos multidomínio; clique em uma célula para cruzar os dois domínios.</p>
+              </div>
+            </div>
+            <div id="domain-overlap-chart"></div>
           </article>
 
           <article class="panel">
@@ -228,7 +315,95 @@
             <div id="owner-type-chart"></div>
           </article>
 
-          <section class="contributor-story-panel" aria-label="Narrativa dos maiores contribuidores">
+          <article class="panel">
+            <div class="panel-heading">
+              <div>
+                <h2>Saúde dos projetos</h2>
+                <p>Índice composto por recência, último push, issues por estrela e forks.</p>
+              </div>
+            </div>
+            <div id="health-chart"></div>
+            <div class="estimation-note">
+              <strong>Fórmula:</strong>
+              <span>30% recência da atualização, 25% issues por estrela, 25% forks e 20% atividade pelo último push.</span>
+            </div>
+          </article>
+
+          <article class="panel wide growth-panel">
+            <div class="panel-heading">
+              <div>
+                <p class="eyebrow">Evolu&ccedil;&atilde;o observada</p>
+                <h2>Crescimento real de estrelas e forks</h2>
+                <p>Cada ponto representa uma coleta preservada, sem estimar valores entre snapshots.</p>
+              </div>
+              <div class="segmented-control" role="group" aria-label="M&eacute;trica de crescimento">
+                <button type="button" data-growth-metric="stars" aria-pressed="true">Stars</button>
+                <button type="button" data-growth-metric="forks" aria-pressed="false">Forks</button>
+              </div>
+            </div>
+            <div id="growth-chart"></div>
+            <div id="growth-snapshot-note" class="estimation-note"></div>
+          </article>
+
+          <article class="panel wide license-panel">
+            <div class="panel-heading">
+              <div>
+                <p class="eyebrow">Governan&ccedil;a e reutiliza&ccedil;&atilde;o</p>
+                <h2>Licen&ccedil;as definem o que o c&oacute;digo permite</h2>
+                <p>A popularidade de um reposit&oacute;rio n&atilde;o substitui uma permiss&atilde;o jur&iacute;dica expl&iacute;cita para usar, modificar ou redistribuir seu c&oacute;digo.</p>
+              </div>
+            </div>
+            <div class="license-stats" aria-label="Resumo de licen&ccedil;as">
+              <article><strong id="licensed-share">-</strong><span>com licen&ccedil;a identificada</span></article>
+              <article><strong id="unlicensed-count">-</strong><span>sem licen&ccedil;a informada</span></article>
+              <article><strong id="top-license">-</strong><span>licen&ccedil;a mais frequente</span></article>
+            </div>
+            <div class="license-layout">
+              <div id="license-chart"></div>
+              <div class="license-narrative">
+                <section>
+                  <h3>Licen&ccedil;a presente</h3>
+                  <p>Uma licen&ccedil;a expl&iacute;cita reduz ambiguidade ao documentar direitos, obriga&ccedil;&otilde;es e limites de reutiliza&ccedil;&atilde;o.</p>
+                </section>
+                <section>
+                  <h3>Licen&ccedil;a ausente</h3>
+                  <p>Sem licen&ccedil;a, o c&oacute;digo continua protegido por direitos autorais; visibilidade p&uacute;blica n&atilde;o equivale a permiss&atilde;o de uso.</p>
+                </section>
+                <section>
+                  <h3>Leitura do recorte</h3>
+                  <p id="license-narrative-summary">A distribui&ccedil;&atilde;o responde aos filtros ativos e conta cada reposit&oacute;rio uma &uacute;nica vez.</p>
+                </section>
+              </div>
+            </div>
+          </article>
+
+          <section id="contributors" class="contributor-story-panel" data-chapter="contributors" aria-label="Narrativa dos maiores contribuidores">
+            <div class="contributor-scope" aria-label="Escopo das contas de contribuição">
+              <label>
+                Tipo de conta
+                <select id="contributor-account-filter">
+                  <option value="all">Todas as contas</option>
+                  <option value="person">Pessoas</option>
+                  <option value="bot">Bots</option>
+                  <option value="automation">Automação</option>
+                </select>
+              </label>
+              <div class="account-breakdown" aria-live="polite">
+                <span><strong id="person-account-count">-</strong> pessoas</span>
+                <span><strong id="bot-account-count">-</strong> bots</span>
+                <span><strong id="automation-account-count">-</strong> automações</span>
+              </div>
+            </div>
+            <div class="coverage-strip" aria-label="Cobertura dos dados de linhas">
+              <article><strong id="coverage-contributors">-</strong><span>por contribuidores</span></article>
+              <article><strong id="coverage-commits">-</strong><span>por commits</span></article>
+              <article><strong id="coverage-repositories">-</strong><span>repositórios completos</span></article>
+            </div>
+            <p class="scope-note">
+              Cobertura significa adições e remoções disponíveis. Um repositório é completo quando todas as contas
+              do recorte possuem esses campos. Nesta base legada, tipos de conta são classificados pelo login;
+              coletas novas usam também o tipo informado pela API do GitHub.
+            </p>
             <div class="panel-heading contributor-heading contributor-story-heading">
               <div>
                 <p class="eyebrow">Scrollytelling dos contribuidores</p>
@@ -292,16 +467,16 @@
                   <span>3</span>
                   <h3>Adicionar e remover contam histórias diferentes</h3>
                   <p>
-                    Adições apontam expansão de funcionalidades; remoções sinalizam limpeza, otimização ou
-                    refatoração. O contraste por repositório antecipa a leitura detalhada dos contribuidores.
+                    Adições podem apontar expansão; remoções podem acompanhar limpeza, otimização ou refatoração.
+                    A leitura inclui apenas contribuidores com os dois campos disponíveis.
                   </p>
                 </article>
                 <article class="story-step contributor-story-step" data-contributor-view="rhythm">
                   <span>4</span>
                   <h3>O ritmo também muda ao longo do tempo</h3>
                   <p>
-                    A série temporal mostra meses de maior intensidade. Como o CSV traz linhas históricas por
-                    contribuidor, adições e remoções mensais são estimadas pelo peso dos commits de cada mês.
+                    A série temporal mostra meses de maior intensidade. Linhas mensais são usadas quando existem;
+                    fontes com apenas totais são distribuídas pelo peso dos commits de cada mês.
                   </p>
                 </article>
               </div>
@@ -331,13 +506,24 @@
                   <strong id="contributor-commit-total">-</strong>
                   <span>commits históricos</span>
                 </article>
+                <article>
+                  <strong id="contributor-change-coverage">-</strong>
+                  <span>com adições e remoções</span>
+                </article>
               </div>
+            </div>
+            <div class="estimation-note">
+              <strong>Completude:</strong>
+              <span>
+                commits permanecem na análise quando disponíveis; perfis de trabalho usam somente contribuidores
+                com adições e remoções informadas.
+              </span>
             </div>
             <div class="identity-note">
               <span class="identity-line-sample"></span>
               <p>
                 Linha X = Y: abaixo/direita estão contribuidores que adicionaram mais código; acima/esquerda estão
-                perfis com mais remoções, refatorações ou limpezas.
+                perfis com mais remoções. A interpretação considera apenas dados de linhas disponíveis.
               </p>
             </div>
             <div id="contributors-bubble"></div>
@@ -379,16 +565,16 @@
                 <p class="eyebrow">Sazonalidade</p>
                 <h2>Ritmo e produtividade ao longo do tempo</h2>
                 <p>
-                  A linha temporal agrega os commits mensais dos contribuidores e estima adições e remoções a
-                  partir da participação de cada mês no histórico do contribuidor.
+                  A linha temporal agrega os commits mensais e usa adições e remoções mensais quando coletadas.
+                  Fontes legadas com apenas totais são estimadas pela participação de commits no mês.
                 </p>
               </div>
             </div>
             <div class="estimation-note">
               <strong>Leitura dos dados:</strong>
               <span>
-                commits são mensais; adições e remoções temporais são estimativas proporcionais, pois o CSV traz
-                esses campos como totais históricos por contribuidor.
+                commits são mensais; adições e remoções podem ser coletadas por mês ou estimadas a partir de totais
+                históricos. Registros sem esses campos não entram nas séries de linhas.
               </span>
             </div>
             <div id="contributor-timeline"></div>
@@ -410,8 +596,8 @@
                 <select id="calendar-metric">
                   <option value="changes">Linhas modificadas</option>
                   <option value="commits">Commits</option>
-                  <option value="additions">Adições estimadas</option>
-                  <option value="removals">Remoções estimadas</option>
+                  <option value="additions">Adições com cobertura</option>
+                  <option value="removals">Remoções com cobertura</option>
                 </select>
               </label>
             </div>
@@ -479,10 +665,10 @@
             <div class="panel-heading contributor-heading">
               <div>
                 <p class="eyebrow">Natureza do trabalho</p>
-                <h2>Expansão vs. refatoração</h2>
+                <h2>Adições vs. remoções</h2>
                 <p>
-                  O gráfico divergente posiciona adições à direita e remoções à esquerda. Assim, fica claro quando
-                  um contribuidor ou período expande funcionalidades ou concentra limpeza e refatoração.
+                  O gráfico divergente posiciona adições à direita e remoções à esquerda para os registros com
+                  cobertura de linhas. O contraste sugere a natureza do trabalho, sem classificar dados ausentes.
                 </p>
               </div>
               <div class="concentration-controls">
@@ -518,15 +704,15 @@
             <div class="estimation-note">
               <strong>Leitura dos dados:</strong>
               <span>
-                por contribuidor, os totais são históricos; por mês, adições e remoções são estimadas a partir do
-                peso dos commits mensais de cada contribuidor.
+                totais por contribuidor são históricos; valores mensais são coletados quando presentes ou
+                estimados pelo peso dos commits. Registros sem linhas ficam fora desta visualização.
               </span>
             </div>
             <div id="nature-diverging"></div>
             <div class="story-legend" id="nature-legend"></div>
           </article>
 
-          <article class="panel wide">
+          <article id="ranking" class="panel wide" data-chapter="ranking">
             <div class="panel-heading">
               <div>
                 <h2>Top repositórios</h2>
@@ -539,17 +725,23 @@
                   <tr>
                     <th>#</th>
                     <th>Repositório</th>
-                    <th>Domínio</th>
+            <th>Domínios</th>
                     <th>Linguagem</th>
                     <th>Stars</th>
                     <th>Forks</th>
                     <th>Issues</th>
+                    <th>Saúde</th>
                     <th>Licença</th>
                   </tr>
                 </thead>
                 <tbody id="repo-table"></tbody>
               </table>
             </div>
+            <nav class="table-pagination" aria-label="Paginação da tabela">
+              <button id="table-previous" type="button">Anterior</button>
+              <span id="table-page-status" aria-live="polite">Página 1 de 1</span>
+              <button id="table-next" type="button">Próxima</button>
+            </nav>
           </article>
         </section>
       </section>

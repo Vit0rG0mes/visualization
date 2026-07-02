@@ -4,8 +4,9 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "prepare-data": "node scripts/prepare-data.mjs",
-    "prepare-contributors": "node scripts/prepare-contributors.mjs",
+    "prepare-data": "node scripts/data-pipeline.mjs prepare",
+    "collect-data": "node scripts/data-pipeline.mjs collect",
+    "snapshot-data": "node scripts/data-pipeline.mjs snapshot",
     "serve": "node scripts/static-server.mjs"
   }
 }
