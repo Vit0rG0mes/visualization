@@ -43,25 +43,42 @@ export function hideTooltip() {
 }
 
 export function makeMarksAccessible(selection, { describe, tooltip, activate } = {}) {
+  const nodes = selection.nodes();
   selection
-    .attr("tabindex", 0)
+    .attr("tabindex", (_, index) => index === 0 ? 0 : -1)
     .attr("focusable", true)
     .attr("role", item => (item?.url ? "link" : "button"))
     .attr("aria-label", item => describe(item))
+    .attr("aria-posinset", (_, index) => index + 1)
+    .attr("aria-setsize", nodes.length)
     .on("mousemove.tooltip", (event, item) => showTooltip(event, tooltip(item)))
     .on("mouseleave.tooltip", hideTooltip)
     .on("click.crossfilter", (event, item) => {
       if (activate) activate(item);
     })
     .on("focus.tooltip", function (_, item) {
+      for (const node of nodes) node.setAttribute("tabindex", node === this ? "0" : "-1");
       showTooltipForElement(this, tooltip(item));
     })
     .on("blur.tooltip", hideTooltip)
     .on("keydown.tooltip", function (event, item) {
-      if (event.key !== "Enter" && event.key !== " ") return;
+      if (event.key === "Enter" || event.key === " ") {
+        event.preventDefault();
+        if (activate) activate(item);
+        else showTooltipForElement(this, tooltip(item));
+        return;
+      }
+      const currentIndex = nodes.indexOf(this);
+      const previous = event.key === "ArrowLeft" || event.key === "ArrowUp";
+      const next = event.key === "ArrowRight" || event.key === "ArrowDown";
+      let targetIndex = currentIndex;
+      if (previous) targetIndex = (currentIndex - 1 + nodes.length) % nodes.length;
+      else if (next) targetIndex = (currentIndex + 1) % nodes.length;
+      else if (event.key === "Home") targetIndex = 0;
+      else if (event.key === "End") targetIndex = nodes.length - 1;
+      else return;
       event.preventDefault();
-      if (activate) activate(item);
-      else showTooltipForElement(this, tooltip(item));
+      nodes[targetIndex]?.focus();
     });
   return selection;
 }
@@ -83,7 +100,7 @@ export function setChartSummary(selector, text) {
 }
 
 export function tooltipHtml(repo) {
-  return `<strong>${escapeHtml(repo.name)}</strong><br>${escapeHtml(repo.domains.join(", "))} - ${escapeHtml(repo.language)}<br>Stars: ${formatNumber.format(repo.stars)}<br>Forks: ${formatNumber.format(repo.forks)}<br>Issues: ${formatNumber.format(repo.issues)}<br>Saúde: ${formatNumber.format(repo.healthScore)}/100 · ${escapeHtml(repo.healthLabel)}<br>Tópicos: ${escapeHtml((repo.topics ?? []).slice(0, 5).join(", ") || "sem tópicos")}`;
+  return `<strong>${escapeHtml(repo.name)}</strong><br>${escapeHtml(repo.domains.join(", "))} - ${escapeHtml(repo.language)}<br>Stars: ${formatNumber.format(repo.stars)}<br>Forks: ${formatNumber.format(repo.forks)}<br>Issues: ${formatNumber.format(repo.issues)}<br>Atividade/adoção: ${formatNumber.format(repo.healthScore)}/100 · ${escapeHtml(repo.healthLabel)}<br>Tópicos: ${escapeHtml((repo.topics ?? []).slice(0, 5).join(", ") || "sem tópicos")}`;
 }
 
 export function contributorTooltip(item) {

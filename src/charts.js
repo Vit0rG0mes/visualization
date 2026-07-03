@@ -1,7 +1,9 @@
 import { loadDashboardData } from "./data.js";
 import { exportRepositoriesCsv, exportRepositoriesPng } from "./export.js";
 import { debounce, filterRepositories, pageSlice, readUrlState, uniqueSorted, writeUrlState } from "./filters.js";
-import { formatCompact, formatNumber, formatPercent, monthLabels, state } from "./state.js";
+import { deleteFavoriteSet, loadFavoriteSets, saveFavoriteSet } from "./favorites.js";
+import { calculateSnapshotMomentum } from "./snapshots.js";
+import { defaultHealthWeights, formatCompact, formatNumber, formatPercent, monthLabels, state } from "./state.js";
 import {
   calendarTooltip,
   contributorRepositoryTooltip,
@@ -22,6 +24,9 @@ import {
   tooltipHtml,
   workstyleTooltip
 } from "./tooltips.js";
+
+const contrastStorageKey = "github-dashboard-high-contrast-v1";
+const reducedMotionQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
 
 const metricLabels = {
   stars: "Stars",
@@ -127,6 +132,16 @@ const els = {
   topDomain: document.querySelector("#top-domain"),
   orgShare: document.querySelector("#org-share"),
   healthyProjects: document.querySelector("#healthy-projects"),
+  healthWeightInputs: Array.from(document.querySelectorAll("[data-health-weight]")),
+  healthWeightOutputs: {
+    recency: document.querySelector("#weight-recency-output"),
+    issues: document.querySelector("#weight-issues-output"),
+    forks: document.querySelector("#weight-forks-output"),
+    activity: document.querySelector("#weight-activity-output")
+  },
+  healthWeightTotal: document.querySelector("#weight-total"),
+  resetHealthWeights: document.querySelector("#reset-health-weights"),
+  healthFormulaNote: document.querySelector("#health-formula-note span"),
   medianStars: document.querySelector("#median-stars"),
   topLanguage: document.querySelector("#top-language"),
   activeProjects: document.querySelector("#active-projects"),
@@ -137,6 +152,7 @@ const els = {
   contributorStoryTitle: document.querySelector("#contributor-story-title"),
   contributorStoryCaption: document.querySelector("#contributor-story-caption"),
   contributorStoryLegend: document.querySelector("#contributor-story-legend"),
+  contributorStoryConfidence: document.querySelector("#contributor-story-confidence"),
   contributorStoryTotal: document.querySelector("#contributor-story-total"),
   contributorStoryRepositories: document.querySelector("#contributor-story-repositories"),
   contributorStoryCommits: document.querySelector("#contributor-story-commits"),
@@ -147,8 +163,10 @@ const els = {
   workstyleActiveSpan: document.querySelector("#workstyle-active-span"),
   workstyleLegend: document.querySelector("#workstyle-legend"),
   contributorTimelineLegend: document.querySelector("#contributor-timeline-legend"),
+  timelineConfidence: document.querySelector("#timeline-confidence"),
   contributorCalendarMetric: document.querySelector("#calendar-metric"),
   contributorCalendarLegend: document.querySelector("#contributor-calendar-legend"),
+  calendarConfidence: document.querySelector("#calendar-confidence"),
   paretoRepository: document.querySelector("#pareto-repository"),
   paretoMetric: document.querySelector("#pareto-metric"),
   paretoThresholdCount: document.querySelector("#pareto-threshold-count"),
@@ -162,6 +180,7 @@ const els = {
   natureDominant: document.querySelector("#nature-dominant"),
   natureBalance: document.querySelector("#nature-balance"),
   natureLegend: document.querySelector("#nature-legend"),
+  natureConfidence: document.querySelector("#nature-confidence"),
   repositoryCollectionDate: document.querySelector("#repository-collection-date"),
   contributorCollectionDate: document.querySelector("#contributor-collection-date"),
   preparationDate: document.querySelector("#preparation-date"),
@@ -179,20 +198,55 @@ const els = {
     document.querySelector("#compare-repo-2"),
     document.querySelector("#compare-repo-3")
   ],
+  comparisonOptions: document.querySelector("#comparison-repositories"),
+  comparisonStatus: document.querySelector("#comparison-status"),
+  presentationToggle: document.querySelector("#presentation-toggle"),
+  contrastToggle: document.querySelector("#contrast-toggle"),
+  favoriteName: document.querySelector("#favorite-name"),
+  favoriteSet: document.querySelector("#favorite-set"),
+  saveFavoriteSet: document.querySelector("#save-favorite-set"),
+  loadFavoriteSet: document.querySelector("#load-favorite-set"),
+  deleteFavoriteSet: document.querySelector("#delete-favorite-set"),
+  favoriteStatus: document.querySelector("#favorite-status"),
+  activeFilters: document.querySelector("#active-filters"),
+  activeFilterChips: document.querySelector("#active-filter-chips"),
+  clearFilters: document.querySelector("#clear-filters"),
+  qualityFieldCoverage: document.querySelector("#quality-field-coverage"),
+  qualityMissingLicense: document.querySelector("#quality-missing-license"),
+  qualityContributorCoverage: document.querySelector("#quality-contributor-coverage"),
+  qualitySnapshotCount: document.querySelector("#quality-snapshot-count"),
+  qualityFieldsBody: document.querySelector("#quality-fields-body"),
+  qualityRepositorySource: document.querySelector("#quality-repository-source"),
+  qualityContributorSource: document.querySelector("#quality-contributor-source"),
+  qualitySnapshotSource: document.querySelector("#quality-snapshot-source"),
+  qualityScopeNote: document.querySelector("#quality-scope-note"),
   comparisonDetails: document.querySelector("#comparison-details"),
   chapterLinks: Array.from(document.querySelectorAll(".chapter-nav a")),
+  mobileChapterLinks: Array.from(document.querySelectorAll(".mobile-chapter-menu a")),
+  mobileChapterMenu: document.querySelector(".mobile-chapter-menu"),
+  mobileChapterCurrent: document.querySelector("#mobile-chapter-current"),
   tablePrevious: document.querySelector("#table-previous"),
   tableNext: document.querySelector("#table-next"),
   tablePageStatus: document.querySelector("#table-page-status"),
   exportCsv: document.querySelector("#export-csv"),
   exportPng: document.querySelector("#export-png"),
   exportStatus: document.querySelector("#export-status"),
+  copyAnalysisLink: document.querySelector("#copy-analysis-link"),
   growthMetricButtons: Array.from(document.querySelectorAll("[data-growth-metric]")),
+  outlierModeButtons: Array.from(document.querySelectorAll("[data-outlier-mode]")),
+  outlierConfidence: document.querySelector("#outlier-confidence"),
+  outlierDetails: document.querySelector("#outlier-details"),
   growthSnapshotNote: document.querySelector("#growth-snapshot-note"),
+  snapshotWeeklyGain: document.querySelector("#snapshot-weekly-gain"),
+  snapshotRankMovers: document.querySelector("#snapshot-rank-movers"),
+  snapshotAccelerating: document.querySelector("#snapshot-accelerating"),
+  snapshotMovers: document.querySelector("#snapshot-movers"),
+  snapshotMoversWrap: document.querySelector("#snapshot-movers-wrap"),
   licensedShare: document.querySelector("#licensed-share"),
   unlicensedCount: document.querySelector("#unlicensed-count"),
   topLicense: document.querySelector("#top-license"),
-  licenseNarrativeSummary: document.querySelector("#license-narrative-summary")
+  licenseNarrativeSummary: document.querySelector("#license-narrative-summary"),
+  licenseCrossLegend: document.querySelector("#license-cross-legend")
 };
 
 const renderRegistry = new Map([
@@ -210,6 +264,8 @@ const renderRegistry = new Map([
   ["#health-chart", renderHealthChart],
   ["#growth-chart", renderGrowthChart],
   ["#license-chart", renderLicenseChart],
+  ["#outlier-chart", renderOutlierChart],
+  ["#license-cross-chart", renderLicenseCrossChart],
   ["#contributor-story-chart", renderContributorStory],
   ["#contributors-bubble", renderContributorsBubble],
   ["#workstyle-scatter", renderWorkstyleScatter],
@@ -230,6 +286,9 @@ export async function initDashboard() {
   state.metadata = metadata;
   state.repositorySnapshots = repositorySnapshots;
   hydrateStateFromUrl();
+  hydrateInterfacePreferences();
+  state.favoriteComparisons = loadFavoriteSets();
+  recalculateActivityIndex();
   state.contributorRepositories = (contributorPayload.repositories ?? [])
     .map(item => (typeof item === "string" ? item : item.repository))
     .filter(Boolean);
@@ -241,8 +300,11 @@ export async function initDashboard() {
 
   populateFilters();
   populateComparisonControls();
+  renderFavoriteSets();
   populateContributorControls();
   syncControlsFromState();
+  syncInterfaceModes();
+  syncHealthWeightControls();
   bindEvents();
   observeChapters();
   observeStorySteps();
@@ -282,21 +344,29 @@ function hydrateStateFromUrl() {
   if (!domains.has(state.secondaryDomain)) state.secondaryDomain = "all";
   if (!languages.has(state.language)) state.language = "all";
   if (!["all", "person", "bot", "automation"].includes(state.contributorType)) state.contributorType = "all";
+  if (!["popularity", "activity", "concentration"].includes(state.outlierMode)) state.outlierMode = "popularity";
+  if (!state.healthWeights || d3.sum(Object.values(state.healthWeights)) <= 0) state.healthWeights = { ...defaultHealthWeights };
   const defaults = state.repositories.slice(0, 2).map(item => item.fullName);
   state.compareRepositories = Array.from(new Set([...state.compareRepositories, ...defaults])).slice(0, 3);
 }
 
+function hydrateInterfacePreferences() {
+  try {
+    state.highContrast = window.localStorage.getItem(contrastStorageKey) === "1";
+  } catch {
+    state.highContrast = false;
+  }
+}
+
 function populateComparisonControls() {
-  for (const [index, select] of els.compareRepositories.entries()) {
-    if (!select) continue;
-    for (const repository of state.repositories) {
+  if (!els.comparisonOptions) return;
+  els.comparisonOptions.replaceChildren(
+    ...state.repositories.map(repository => {
       const option = document.createElement("option");
       option.value = repository.fullName;
-      option.textContent = repository.fullName;
-      select.append(option);
-    }
-    if (index < 2 && !select.options.length) select.disabled = true;
-  }
+      return option;
+    })
+  );
 }
 
 function syncControlsFromState() {
@@ -308,7 +378,42 @@ function syncControlsFromState() {
   els.compareRepositories.forEach((select, index) => {
     if (select) select.value = state.compareRepositories[index] || "";
   });
-  ensureDistinctComparisonControls();
+  updateComparisonValidity();
+  els.outlierModeButtons.forEach(button => button.setAttribute("aria-pressed", String(button.dataset.outlierMode === state.outlierMode)));
+}
+
+function normalizedHealthWeights() {
+  const total = d3.sum(Object.values(state.healthWeights)) || 1;
+  return Object.fromEntries(Object.entries(state.healthWeights).map(([key, value]) => [key, Number(value) / total]));
+}
+
+function recalculateActivityIndex() {
+  const weights = normalizedHealthWeights();
+  for (const repository of state.repositories) {
+    const components = repository.healthComponents ?? {};
+    const score = Math.round(
+      (Number(components.recency) || 0) * weights.recency +
+      (Number(components.issues) || 0) * weights.issues +
+      (Number(components.forks) || 0) * weights.forks +
+      (Number(components.activity) || 0) * weights.activity
+    );
+    repository.healthScore = score;
+    repository.healthLabel = score >= 75 ? "Alta atividade/adoção" : score >= 50 ? "Atividade intermediária" : "Baixa atividade/adoção";
+  }
+}
+
+function syncHealthWeightControls() {
+  const total = d3.sum(Object.values(state.healthWeights));
+  const normalized = normalizedHealthWeights();
+  for (const input of els.healthWeightInputs) {
+    const key = input.dataset.healthWeight;
+    input.value = String(state.healthWeights[key]);
+    if (els.healthWeightOutputs[key]) els.healthWeightOutputs[key].textContent = `${Math.round(normalized[key] * 100)}%`;
+  }
+  if (els.healthWeightTotal) els.healthWeightTotal.textContent = `Soma bruta: ${formatNumber.format(total)}`;
+  if (els.healthFormulaNote) {
+    els.healthFormulaNote.textContent = `${Math.round(normalized.recency * 100)}% recência, ${Math.round(normalized.issues * 100)}% issues por estrela, ${Math.round(normalized.forks * 100)}% forks e ${Math.round(normalized.activity * 100)}% último push.`;
+  }
 }
 
 function populateContributorControls() {
@@ -404,13 +509,22 @@ function bindEvents() {
     state.contributorType = event.target.value;
     state.monthlyContributions = buildMonthlyContributionSummary(state.contributorMonthlyRows);
     updateContributorInfographics();
+    updateDataQuality();
     updateChartSummaries();
     invalidateContributorCharts();
     writeUrlState(state);
+    renderActiveFilters();
   });
 
-  els.compareRepositories.forEach(select => {
-    select?.addEventListener("change", updateComparisonSelection);
+  els.compareRepositories.forEach((input, index) => {
+    input?.addEventListener("input", () => {
+      updateComparisonValidity();
+      const value = input.value.trim();
+      if (state.repositories.some(repository => repository.fullName === value) || (!value && index === 2)) {
+        updateComparisonSelection(index);
+      }
+    });
+    input?.addEventListener("change", () => updateComparisonSelection(index));
   });
 
   els.tablePrevious?.addEventListener("click", () => {
@@ -439,6 +553,20 @@ function bindEvents() {
     }
   });
 
+  els.copyAnalysisLink?.addEventListener("click", copyAnalysisLink);
+  els.presentationToggle?.addEventListener("click", togglePresentationMode);
+  els.contrastToggle?.addEventListener("click", toggleHighContrast);
+  els.saveFavoriteSet?.addEventListener("click", saveCurrentFavoriteSet);
+  els.loadFavoriteSet?.addEventListener("click", loadSelectedFavoriteSet);
+  els.deleteFavoriteSet?.addEventListener("click", deleteSelectedFavoriteSet);
+  els.favoriteSet?.addEventListener("change", syncFavoriteActions);
+
+  els.mobileChapterLinks.forEach(link => {
+    link.addEventListener("click", () => {
+      if (els.mobileChapterMenu) els.mobileChapterMenu.open = false;
+    });
+  });
+
   els.growthMetricButtons.forEach(button => {
     button.addEventListener("click", () => {
       state.growthMetric = button.dataset.growthMetric;
@@ -448,8 +576,39 @@ function bindEvents() {
     });
   });
 
+  els.outlierModeButtons.forEach(button => {
+    button.addEventListener("click", () => {
+      state.outlierMode = button.dataset.outlierMode;
+      els.outlierModeButtons.forEach(item => item.setAttribute("aria-pressed", String(item === button)));
+      writeUrlState(state);
+      updateChartSummaries();
+      requestRender("#outlier-chart");
+    });
+  });
+
+  els.healthWeightInputs.forEach(input => {
+    input.addEventListener("input", () => {
+      state.healthWeights[input.dataset.healthWeight] = Number(input.value);
+      if (d3.sum(Object.values(state.healthWeights)) <= 0) state.healthWeights[input.dataset.healthWeight] = 5;
+      recalculateActivityIndex();
+      syncHealthWeightControls();
+      state.tablePage = 1;
+      applyFilters();
+    });
+  });
+
+  els.resetHealthWeights?.addEventListener("click", () => {
+    state.healthWeights = { ...defaultHealthWeights };
+    recalculateActivityIndex();
+    syncHealthWeightControls();
+    applyFilters();
+  });
+
+  els.clearFilters?.addEventListener("click", clearAllFilters);
+
   window.addEventListener("resize", debounce(invalidateAll, 160));
   window.addEventListener("scroll", updateParallax, { passive: true });
+  reducedMotionQuery.addEventListener?.("change", updateParallax);
 }
 
 function exportContext() {
@@ -468,23 +627,168 @@ function announceExport(message) {
   if (els.exportStatus) els.exportStatus.textContent = message;
 }
 
-function updateComparisonSelection() {
-  const selected = els.compareRepositories.map(select => select?.value).filter(Boolean);
-  state.compareRepositories = Array.from(new Set(selected)).slice(0, 3);
-  ensureDistinctComparisonControls();
+async function copyAnalysisLink() {
+  const url = window.location.href;
+  let copied = false;
+  try {
+    await navigator.clipboard.writeText(url);
+    copied = true;
+  } catch {
+    const textarea = document.createElement("textarea");
+    textarea.value = url;
+    textarea.setAttribute("readonly", "");
+    textarea.style.position = "fixed";
+    textarea.style.opacity = "0";
+    document.body.append(textarea);
+    textarea.select();
+    copied = document.execCommand("copy");
+    textarea.remove();
+  }
+  announceExport(copied ? "Link da análise copiado." : "Não foi possível copiar o link neste navegador.");
+}
+
+function updateComparisonSelection(changedIndex) {
+  const repositoryNames = new Set(state.repositories.map(repository => repository.fullName));
+  const input = els.compareRepositories[changedIndex];
+  const value = input?.value.trim() || "";
+  const required = changedIndex < 2;
+  const duplicate = value && state.compareRepositories.some((name, index) => index !== changedIndex && name === value);
+  if ((required && !value) || (value && !repositoryNames.has(value)) || duplicate) {
+    if (input) input.value = state.compareRepositories[changedIndex] || "";
+    announceComparison(duplicate ? "O repositório já está na comparação." : "Selecione um repositório da lista.");
+    updateComparisonValidity();
+    return;
+  }
+
+  const selected = [...state.compareRepositories];
+  selected[changedIndex] = value;
+  state.compareRepositories = selected.filter(Boolean).slice(0, 3);
+  syncControlsFromState();
+  announceComparison(`${state.compareRepositories.length} repositórios selecionados.`);
   writeUrlState(state);
   updateChartSummaries();
   requestRender("#repository-comparison");
 }
 
-function ensureDistinctComparisonControls() {
-  const selected = new Set(state.compareRepositories);
-  els.compareRepositories.forEach((select, index) => {
-    if (!select) return;
-    for (const option of select.options) {
-      option.disabled = Boolean(option.value && selected.has(option.value) && option.value !== state.compareRepositories[index]);
-    }
+function updateComparisonValidity() {
+  const repositoryNames = new Set(state.repositories.map(repository => repository.fullName));
+  const values = els.compareRepositories.map(input => input?.value.trim() || "");
+  els.compareRepositories.forEach((input, index) => {
+    if (!input) return;
+    const value = values[index];
+    const duplicate = value && values.some((other, otherIndex) => otherIndex !== index && other === value);
+    const invalid = Boolean(value && (!repositoryNames.has(value) || duplicate));
+    input.setCustomValidity(invalid ? (duplicate ? "Repositório duplicado." : "Escolha um repositório da lista.") : "");
+    input.setAttribute("aria-invalid", String(invalid));
   });
+}
+
+function announceComparison(message) {
+  if (els.comparisonStatus) els.comparisonStatus.textContent = message;
+}
+
+function syncInterfaceModes() {
+  document.body.classList.toggle("presentation-mode", state.presentationMode);
+  document.body.classList.toggle("high-contrast", state.highContrast);
+  if (els.presentationToggle) {
+    els.presentationToggle.setAttribute("aria-pressed", String(state.presentationMode));
+    els.presentationToggle.textContent = state.presentationMode ? "Sair da apresentação" : "Modo apresentação";
+  }
+  if (els.contrastToggle) {
+    els.contrastToggle.setAttribute("aria-pressed", String(state.highContrast));
+    els.contrastToggle.textContent = state.highContrast ? "Contraste padrão" : "Alto contraste";
+  }
+}
+
+function togglePresentationMode() {
+  state.presentationMode = !state.presentationMode;
+  syncInterfaceModes();
+  writeUrlState(state);
+  updateChapterNavigation();
+  invalidateAll();
+}
+
+function toggleHighContrast() {
+  state.highContrast = !state.highContrast;
+  try {
+    window.localStorage.setItem(contrastStorageKey, state.highContrast ? "1" : "0");
+  } catch {
+    // The visual preference still applies for the current session.
+  }
+  syncInterfaceModes();
+  invalidateAll();
+}
+
+function renderFavoriteSets(selectedName = "") {
+  if (!els.favoriteSet) return;
+  const placeholder = document.createElement("option");
+  placeholder.value = "";
+  placeholder.textContent = state.favoriteComparisons.length ? "Selecione um favorito" : "Nenhum conjunto salvo";
+  els.favoriteSet.replaceChildren(
+    placeholder,
+    ...state.favoriteComparisons.map(favorite => {
+      const option = document.createElement("option");
+      option.value = favorite.name;
+      option.textContent = `${favorite.name} (${favorite.repositories.length})`;
+      return option;
+    })
+  );
+  els.favoriteSet.value = selectedName;
+  syncFavoriteActions();
+}
+
+function syncFavoriteActions() {
+  const hasSelection = Boolean(els.favoriteSet?.value);
+  if (els.loadFavoriteSet) els.loadFavoriteSet.disabled = !hasSelection;
+  if (els.deleteFavoriteSet) els.deleteFavoriteSet.disabled = !hasSelection;
+}
+
+function saveCurrentFavoriteSet() {
+  const name = els.favoriteName?.value.trim() || `Comparação ${state.favoriteComparisons.length + 1}`;
+  try {
+    state.favoriteComparisons = saveFavoriteSet(state.favoriteComparisons, name, state.compareRepositories);
+    const saved = state.favoriteComparisons.find(item => item.name.localeCompare(name, "pt-BR", { sensitivity: "base" }) === 0);
+    if (els.favoriteName) els.favoriteName.value = saved?.name || name;
+    renderFavoriteSets(saved?.name || name);
+    announceFavorite(`Conjunto ${saved?.name || name} salvo com ${state.compareRepositories.length} repositórios.`);
+  } catch (error) {
+    announceFavorite(error.message || "Não foi possível salvar o conjunto.");
+  }
+}
+
+function loadSelectedFavoriteSet() {
+  const favorite = state.favoriteComparisons.find(item => item.name === els.favoriteSet?.value);
+  if (!favorite) return;
+  const available = new Set(state.repositories.map(repository => repository.fullName));
+  const repositories = favorite.repositories.filter(name => available.has(name)).slice(0, 3);
+  if (repositories.length < 2) {
+    announceFavorite("Este conjunto não possui mais dois repositórios disponíveis no dataset.");
+    return;
+  }
+  state.compareRepositories = repositories;
+  if (els.favoriteName) els.favoriteName.value = favorite.name;
+  syncControlsFromState();
+  writeUrlState(state);
+  updateChartSummaries();
+  requestRender("#repository-comparison");
+  announceFavorite(`Conjunto ${favorite.name} carregado.`);
+}
+
+function deleteSelectedFavoriteSet() {
+  const name = els.favoriteSet?.value;
+  if (!name) return;
+  try {
+    state.favoriteComparisons = deleteFavoriteSet(state.favoriteComparisons, name);
+    if (els.favoriteName?.value === name) els.favoriteName.value = "";
+    renderFavoriteSets();
+    announceFavorite(`Conjunto ${name} excluído.`);
+  } catch {
+    announceFavorite("Não foi possível excluir o conjunto neste navegador.");
+  }
+}
+
+function announceFavorite(message) {
+  if (els.favoriteStatus) els.favoriteStatus.textContent = message;
 }
 
 function observeChapters() {
@@ -492,7 +796,12 @@ function observeChapters() {
 }
 
 function updateChapterNavigation() {
-  const sections = Array.from(document.querySelectorAll("[data-chapter]"));
+  const presentationChapters = new Set(["overview", "contributors"]);
+  const sections = Array.from(document.querySelectorAll("[data-chapter]")).filter(section => {
+    const visible = section.getClientRects().length > 0;
+    const includedInPresentation = !state.presentationMode || presentationChapters.has(section.dataset.chapter);
+    return visible && includedInPresentation;
+  });
   const threshold = window.innerHeight * 0.22;
   const atPageEnd = window.scrollY + window.innerHeight >= document.documentElement.scrollHeight - 2;
   let chapter = atPageEnd ? sections.at(-1)?.dataset.chapter : null;
@@ -503,10 +812,14 @@ function updateChapterNavigation() {
     }
   }
 
-  els.chapterLinks.forEach(link => {
+  [...els.chapterLinks, ...els.mobileChapterLinks].forEach(link => {
     if (chapter && link.getAttribute("href") === `#${chapter}`) link.setAttribute("aria-current", "page");
     else link.removeAttribute("aria-current");
   });
+  if (els.mobileChapterCurrent && chapter) {
+    const activeLink = els.mobileChapterLinks.find(link => link.getAttribute("href") === `#${chapter}`);
+    els.mobileChapterCurrent.textContent = activeLink?.textContent || chapter;
+  }
 }
 
 function observeCharts() {
@@ -579,6 +892,7 @@ function enhanceChartMarks(selector) {
     if (selector === "#language-chart") return state.language === item.language;
     if (selector === "#domain-language-heatmap") return state.domain === item.domain && state.language === item.language;
     if (selector === "#license-chart") return state.query === String(item.license || "").toLowerCase();
+    if (selector === "#license-cross-chart") return state.query === String(item.license || "").toLowerCase();
     if (selector === "#domain-overlap-chart") {
       return state.domain === item.domainA && (state.secondaryDomain === item.domainB || (item.domainA === item.domainB && state.secondaryDomain === "all"));
     }
@@ -598,6 +912,8 @@ function chartMarkAction(selector) {
   }
   if (selector === "#health-chart") return item => applyCrossFilters({ query: item.fullName });
   if (selector === "#license-chart") return item => applyCrossFilters({ query: String(item.license || "").toLowerCase() });
+  if (selector === "#license-cross-chart") return item => applyCrossFilters({ query: String(item.license || "").toLowerCase() });
+  if (selector === "#outlier-chart") return item => applyCrossFilters({ query: item.fullName });
   return undefined;
 }
 
@@ -608,8 +924,63 @@ function applyCrossFilters(filters) {
   applyFilters();
 }
 
+function activeFilterItems() {
+  return [
+    state.query ? { key: "query", label: `Busca: ${state.query}` } : null,
+    state.domain !== "all" ? { key: "domain", label: `Domínio: ${state.domain}` } : null,
+    state.secondaryDomain !== "all" ? { key: "secondaryDomain", label: `Segundo domínio: ${state.secondaryDomain}` } : null,
+    state.language !== "all" ? { key: "language", label: `Linguagem: ${state.language}` } : null,
+    state.contributorType !== "all" ? { key: "contributorType", label: `Contas: ${accountTypeLabels[state.contributorType]}` } : null
+  ].filter(Boolean);
+}
+
+function renderActiveFilters() {
+  if (!els.activeFilters || !els.activeFilterChips) return;
+  const filters = activeFilterItems();
+  els.activeFilters.hidden = filters.length === 0;
+  els.activeFilterChips.replaceChildren(
+    ...filters.map(filter => {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "filter-chip";
+      button.setAttribute("aria-label", `Remover filtro ${filter.label}`);
+      button.append(document.createTextNode(filter.label));
+      const remove = document.createElement("span");
+      remove.setAttribute("aria-hidden", "true");
+      remove.textContent = "×";
+      button.append(remove);
+      button.addEventListener("click", () => removeActiveFilter(filter.key));
+      return button;
+    })
+  );
+}
+
+function removeActiveFilter(key) {
+  state[key] = key === "query" ? "" : "all";
+  if (key === "contributorType") state.monthlyContributions = buildMonthlyContributionSummary(state.contributorMonthlyRows);
+  state.tablePage = 1;
+  syncControlsFromState();
+  applyFilters();
+}
+
+function clearAllFilters() {
+  Object.assign(state, {
+    query: "",
+    domain: "all",
+    secondaryDomain: "all",
+    language: "all",
+    contributorType: "all",
+    tablePage: 1
+  });
+  state.monthlyContributions = buildMonthlyContributionSummary(state.contributorMonthlyRows);
+  syncControlsFromState();
+  applyFilters();
+}
+
 function markDescription(item) {
   if (item.data) return markDescription(item.data);
+  if (item.outlierLabel) return `${item.fullName}: ${item.outlierLabel}`;
+  if (item.licenseCross) return `${item.license}: mediana de ${formatNumber.format(item.medianStars)} estrelas, índice ${item.activityScore} e domínio ${item.topDomain}`;
   if (item.fullName) return `${item.fullName}: ${formatNumber.format(item.stars)} estrelas e ${formatNumber.format(item.forks)} forks`;
   if (item.contributor) return `${item.contributor} em ${item.repository}: ${formatNumber.format(item.commits)} commits`;
   if (item.label && Number.isFinite(Number(item.value))) return `${item.label}: ${formatNumber.format(Math.round(item.value))}`;
@@ -659,6 +1030,7 @@ function observeContributorStorySteps() {
 
       state.activeContributorStory = visible.target.dataset.contributorView;
       steps.forEach(step => step.classList.toggle("is-active", step === visible.target));
+      updateConfidenceBadges();
       requestRender("#contributor-story-chart");
     },
     { threshold: [0.35, 0.55, 0.75], rootMargin: "-20% 0px -25% 0px" }
@@ -668,13 +1040,15 @@ function observeContributorStorySteps() {
 }
 
 function updateParallax() {
-  document.documentElement.style.setProperty("--parallax-y", `${window.scrollY * -0.12}px`);
+  const offset = reducedMotionQuery.matches ? 0 : window.scrollY * -0.12;
+  document.documentElement.style.setProperty("--parallax-y", `${offset}px`);
   updateChapterNavigation();
 }
 
 function applyFilters() {
   state.filtered = filterRepositories(state.repositories, state);
 
+  renderActiveFilters();
   updateInfographics();
   updateChartSummaries();
   invalidateAll();
@@ -690,6 +1064,24 @@ function renderMetadata() {
   if (els.personAccountCount) els.personAccountCount.textContent = formatNumber.format(state.metadata.accountCounts.person || 0);
   if (els.botAccountCount) els.botAccountCount.textContent = formatNumber.format(state.metadata.accountCounts.bot || 0);
   if (els.automationAccountCount) els.automationAccountCount.textContent = formatNumber.format(state.metadata.accountCounts.automation || 0);
+  renderQualityProvenance();
+}
+
+function renderQualityProvenance() {
+  if (els.qualityRepositorySource) els.qualityRepositorySource.textContent = describeSource(state.metadata.repositorySource);
+  if (els.qualityContributorSource) els.qualityContributorSource.textContent = describeSource(state.metadata.contributorSource);
+  if (els.qualitySnapshotSource) {
+    const sources = state.metadata.snapshotSources ?? [];
+    els.qualitySnapshotSource.textContent = sources.length ? sources.map(describeSource).join(" · ") : "Não informada";
+  }
+}
+
+function describeSource(value) {
+  const source = String(value || "Não informada");
+  if (/github rest api/i.test(source)) return `API GitHub: ${source}`;
+  if (/^https?:\/\//i.test(source)) return `Dataset externo: ${source}`;
+  if (source === "Não informada") return source;
+  return `Arquivo de entrada: ${source}`;
 }
 
 function formatProvenanceDate(value) {
@@ -703,6 +1095,7 @@ function formatProvenanceDate(value) {
 
 function updateChartSummaries() {
   updateLicenseAndGrowthSummaries();
+  updateConfidenceBadges();
   const scopedContributors = contributorScope();
   const count = state.filtered.length;
   const topRepository = state.filtered[0];
@@ -743,7 +1136,7 @@ function updateChartSummaries() {
   setChartSummary("#year-chart", yearExtent[0] ? `Os projetos do recorte foram criados entre ${yearExtent[0]} e ${yearExtent[1]}.` : "Sem datas de criação disponíveis.");
   setChartSummary("#topics-chart", topTopic ? `${topTopic.topic} é o tópico mais recorrente, em ${formatNumber.format(topTopic.total)} projetos.` : "Sem tópicos disponíveis.");
   setChartSummary("#owner-type-chart", count ? `${formatPercent.format(organizations / count)} dos projetos filtrados pertencem a organizações.` : "Sem proprietários no recorte.");
-  setChartSummary("#health-chart", count ? `${formatPercent.format(state.filtered.filter(item => item.healthScore >= 75).length / count)} dos projetos filtrados têm índice de saúde igual ou superior a 75.` : "Sem projetos para avaliar.");
+  setChartSummary("#health-chart", count ? `${formatPercent.format(state.filtered.filter(item => item.healthScore >= 75).length / count)} dos projetos filtrados têm índice de atividade/adoção igual ou superior a 75.` : "Sem projetos para avaliar.");
   setChartSummary("#contributor-story-chart", `${formatNumber.format(scopedContributors.length)} relações contribuidor-repositório no tipo de conta selecionado.`);
   setChartSummary("#contributors-bubble", `${formatNumber.format(contributorsWithChanges)} de ${formatNumber.format(scopedContributors.length)} contas selecionadas possuem adições e remoções disponíveis.`);
   setChartSummary("#workstyle-scatter", `O gráfico de estilo considera somente os ${formatNumber.format(contributorsWithChanges)} contribuidores com cobertura de linhas.`);
@@ -754,20 +1147,65 @@ function updateChartSummaries() {
   setChartSummary("#nature-diverging", nature.rows.length ? `${formatNumber.format(nature.rows.length)} registros com cobertura compõem a comparação entre adições e remoções.` : "Não há adições e remoções disponíveis para este escopo.");
 }
 
+function updateConfidenceBadges() {
+  const exactCommits = d3.sum(state.monthlyContributions, item => item.exactChangeCommits || 0);
+  const estimatedCommits = d3.sum(state.monthlyContributions, item => item.estimatedChangeCommits || 0);
+  const coveredCommits = exactCommits + estimatedCommits;
+  const exactShare = coveredCommits ? exactCommits / coveredCommits : 0;
+  const confidence = exactShare >= 0.8 ? "high" : exactShare >= 0.4 ? "medium" : "low";
+  const estimatedLabel = coveredCommits
+    ? `${formatPercent.format(exactShare)} das linhas mensais são observadas; o restante é estimado por commits.`
+    : "Sem linhas mensais observadas ou estimáveis.";
+  setConfidenceBadge(els.timelineConfidence, confidence, estimatedLabel);
+  if (state.calendarMetric === "commits") {
+    setConfidenceBadge(els.calendarConfidence, "high", "Commits mensais observados.");
+  } else setConfidenceBadge(els.calendarConfidence, confidence, estimatedLabel);
+  if (state.natureGroup === "contributors") {
+    setConfidenceBadge(els.natureConfidence, "high", "Totais históricos observados.");
+  } else setConfidenceBadge(els.natureConfidence, confidence, estimatedLabel);
+  if (els.contributorStoryConfidence) {
+    els.contributorStoryConfidence.hidden = state.activeContributorStory !== "rhythm";
+    if (!els.contributorStoryConfidence.hidden) setConfidenceBadge(els.contributorStoryConfidence, confidence, estimatedLabel);
+  }
+}
+
+function setConfidenceBadge(element, level, detail) {
+  if (!element) return;
+  const label = level === "high" ? "Confiança alta" : level === "medium" ? "Confiança moderada" : "Confiança baixa";
+  element.classList.toggle("is-medium", level === "medium");
+  element.classList.toggle("is-low", level === "low");
+  element.textContent = `${label} · ${detail}`;
+}
+
 function updateLicenseAndGrowthSummaries() {
   const licenses = licenseSummary();
+  const licenseCross = licenseCrossData();
   const growth = growthData();
+  const outliers = outlierData();
   setChartSummary(
     "#license-chart",
     licenses.length
       ? `${licenses[0].license} \u00e9 a licen\u00e7a mais frequente no recorte, com ${formatNumber.format(licenses[0].count)} reposit\u00f3rios.`
       : "Sem informa\u00e7\u00f5es de licen\u00e7a no recorte."
   );
+  setChartSummary(
+    "#license-cross-chart",
+    licenseCross.length
+      ? `${licenseCross[0].license} reúne ${formatNumber.format(licenseCross[0].count)} projetos, mediana de ${formatCompact.format(licenseCross[0].medianStars)} estrelas e índice médio ${licenseCross[0].activityScore}.`
+      : "Sem licenças para cruzar no recorte atual."
+  );
+  setChartSummary(
+    "#outlier-chart",
+    outliers[0]
+      ? `${outliers[0].fullName} lidera a dimensão ${state.outlierMode} no recorte atual: ${outliers[0].outlierLabel}.`
+      : "Sem projetos para identificar outliers."
+  );
   setChartSummary("#growth-chart", growthSummary(growth));
 }
 
 function updateInfographics() {
   updateLicenseStats();
+  updateDataQuality();
   const totalStars = d3.sum(state.filtered, repo => repo.stars);
   const topDomain = domainSummary()[0];
   const topLanguage = languageSummary()[0];
@@ -785,6 +1223,51 @@ function updateInfographics() {
   els.activeProjects.textContent = state.filtered.length ? formatPercent.format(projectsCount / state.filtered.length) : "-";
   if (els.healthyProjects) els.healthyProjects.textContent = state.filtered.length ? formatPercent.format(healthyCount / state.filtered.length) : "-";
   updateContributorInfographics();
+}
+
+function updateDataQuality() {
+  const definitions = [
+    { label: "Descrição", present: repository => Boolean(repository.description?.trim()) },
+    { label: "Homepage", present: repository => Boolean(repository.homepage?.trim()) },
+    { label: "Última atualização", present: repository => Boolean(repository.updatedAt) },
+    { label: "Último push", present: repository => Boolean(repository.pushedAt) },
+    { label: "Linguagem", present: repository => Boolean(repository.language && repository.language !== "Sem linguagem") },
+    { label: "Licença", present: repository => normalizeLicense(repository.license) !== "Sem licenca" },
+    { label: "Tipo de proprietário", present: repository => Boolean(repository.ownerType && !/informado/i.test(repository.ownerType)) },
+    { label: "Tópicos", present: repository => Boolean(repository.topics?.length) }
+  ];
+  const total = state.filtered.length;
+  const rows = definitions.map(definition => {
+    const present = state.filtered.filter(definition.present).length;
+    return { ...definition, present, missing: total - present, coverage: total ? present / total : 0 };
+  });
+  const averageCoverage = rows.length ? d3.mean(rows, row => row.coverage) : 0;
+  const missingLicense = rows.find(row => row.label === "Licença")?.missing ?? 0;
+  const contributors = contributorScope();
+  const coveredContributors = contributors.filter(contributor => contributor.changesAvailable).length;
+
+  if (els.qualityFieldCoverage) els.qualityFieldCoverage.textContent = total ? formatPercent.format(averageCoverage) : "-";
+  if (els.qualityMissingLicense) els.qualityMissingLicense.textContent = formatNumber.format(missingLicense);
+  if (els.qualityContributorCoverage) {
+    els.qualityContributorCoverage.textContent = contributors.length ? formatPercent.format(coveredContributors / contributors.length) : "-";
+  }
+  if (els.qualitySnapshotCount) els.qualitySnapshotCount.textContent = formatNumber.format(state.metadata.snapshotCount ?? 0);
+  if (els.qualityFieldsBody) {
+    els.qualityFieldsBody.replaceChildren(
+      ...rows.map(row => {
+        const tr = document.createElement("tr");
+        for (const value of [row.label, formatNumber.format(row.present), formatNumber.format(row.missing), formatPercent.format(row.coverage)]) {
+          const td = document.createElement("td");
+          td.textContent = value;
+          tr.append(td);
+        }
+        return tr;
+      })
+    );
+  }
+  if (els.qualityScopeNote) {
+    els.qualityScopeNote.textContent = `Cobertura calculada sobre ${formatNumber.format(total)} repositórios filtrados. Valores vazios e categorias explícitas de ausência contam como ausentes.`;
+  }
 }
 
 function updateLicenseStats() {
@@ -963,7 +1446,7 @@ function renderRepositoryComparison() {
     { key: "stars", label: "Stars" },
     { key: "forks", label: "Forks" },
     { key: "issues", label: "Issues abertas" },
-    { key: "healthScore", label: "Saúde" }
+    { key: "healthScore", label: "Atividade/adoção" }
   ];
   const maxByMetric = Object.fromEntries(metrics.map(metric => [metric.key, d3.max(repositories, item => Number(item[metric.key])) || 1]));
   const rows = metrics.flatMap(metric => repositories.map(repository => ({
@@ -1186,7 +1669,7 @@ function renderHealthChart() {
     .slice()
     .sort((a, b) => b.healthScore - a.healthScore || b.stars - a.stars)
     .slice(0, 15);
-  renderBars("#health-chart", values, "fullName", "healthScore", "Índice de saúde", "#167a72");
+  renderBars("#health-chart", values, "fullName", "healthScore", "Índice de atividade/adoção", "#167a72");
 }
 
 function renderGrowthChart() {
@@ -1208,6 +1691,7 @@ function renderGrowthChart() {
   if (!growth.rows.length) {
     renderSvgMessage(svg, width, height, "Ainda n\u00e3o h\u00e1 snapshots para os reposit\u00f3rios deste recorte.");
     renderGrowthNote(growth);
+    renderSnapshotMomentum();
     return;
   }
 
@@ -1241,6 +1725,7 @@ function renderGrowthChart() {
   g.append("g").attr("class", "axis").call(d3.axisLeft(y).ticks(5).tickFormat(value => formatCompact.format(value)));
   g.append("text").attr("x", innerWidth / 2).attr("y", innerHeight + 48).attr("text-anchor", "middle").attr("fill", "#5c6865").text("Data da coleta");
   renderGrowthNote(growth);
+  renderSnapshotMomentum();
 }
 
 function renderGrowthNote(growth) {
@@ -1261,6 +1746,32 @@ function renderGrowthNote(growth) {
   els.growthSnapshotNote.innerHTML = `<strong>Crescimento observado:</strong><span>${sign}${formatNumber.format(delta)} ${escapeHtml(last.snapshotMetric)} em ${growth.rows.length} snapshots, usando uma coorte fixa de ${formatNumber.format(growth.cohortSize)} reposit\u00f3rios.</span>`;
 }
 
+function renderSnapshotMomentum() {
+  const momentum = snapshotMomentumData();
+  if (els.snapshotWeeklyGain) els.snapshotWeeklyGain.textContent = momentum.available ? formatSignedCompact(momentum.weeklyGain) : "-";
+  if (els.snapshotRankMovers) els.snapshotRankMovers.textContent = momentum.available ? formatNumber.format(momentum.rankMovers) : "-";
+  if (els.snapshotAccelerating) els.snapshotAccelerating.textContent = momentum.accelerationAvailable ? formatNumber.format(momentum.accelerating) : "-";
+  if (els.snapshotMoversWrap) els.snapshotMoversWrap.hidden = !momentum.available;
+  if (!els.snapshotMovers) return;
+  els.snapshotMovers.replaceChildren(
+    ...momentum.rows.slice(0, 10).map(item => {
+      const tr = document.createElement("tr");
+      const values = [
+        item.fullName,
+        formatSignedCompact(item.weeklyGain),
+        item.rankChange > 0 ? `↑ ${item.rankChange}` : item.rankChange < 0 ? `↓ ${Math.abs(item.rankChange)}` : "0",
+        item.acceleration === null ? "Aguardando 3º snapshot" : formatSignedCompact(item.acceleration)
+      ];
+      for (const value of values) {
+        const td = document.createElement("td");
+        td.textContent = value;
+        tr.append(td);
+      }
+      return tr;
+    })
+  );
+}
+
 function renderLicenseChart() {
   const values = licenseSummary();
   const missing = values.find(item => item.missing);
@@ -1274,6 +1785,84 @@ function renderLicenseChart() {
     "Repositorios unicos",
     item => item.missing ? "#c7532d" : "#167a72"
   );
+}
+
+function renderOutlierChart() {
+  const data = outlierData().slice(0, 12).map(item => ({ ...item, outlierName: compactRepositoryName(item.fullName) }));
+  const modeConfig = {
+    popularity: { label: "Desvio robusto de popularidade", color: "#c7532d" },
+    activity: { label: "Índice de atividade/adoção", color: "#167a72" },
+    concentration: { label: "Commits nos 5 maiores (%)", color: "#356db6" }
+  };
+  const config = modeConfig[state.outlierMode] ?? modeConfig.popularity;
+  renderBars("#outlier-chart", data, "outlierName", "outlierValue", config.label, config.color);
+  renderOutlierDetails(data);
+  const confidence = state.outlierMode === "concentration" ? "medium" : "high";
+  const detail = state.outlierMode === "concentration"
+    ? "Amostra limitada aos maiores contribuidores disponíveis."
+    : state.outlierMode === "activity"
+      ? "Índice comparativo calculado com os pesos atuais."
+      : "Estrelas observadas no snapshot atual, com escala logarítmica robusta.";
+  setConfidenceBadge(els.outlierConfidence, confidence, detail);
+}
+
+function compactRepositoryName(fullName) {
+  const text = String(fullName || "");
+  return text.length > 28 ? `…${text.slice(-27)}` : text;
+}
+
+function renderOutlierDetails(data) {
+  if (!els.outlierDetails) return;
+  els.outlierDetails.replaceChildren(
+    ...data.slice(0, 3).map((item, index) => {
+      const article = document.createElement("article");
+      const strong = document.createElement("strong");
+      strong.textContent = `${index + 1}. ${item.fullName}`;
+      const span = document.createElement("span");
+      span.textContent = item.outlierLabel;
+      article.append(strong, span);
+      return article;
+    })
+  );
+}
+
+function renderLicenseCrossChart() {
+  const data = licenseCrossData().slice(0, 12);
+  const container = d3.select("#license-cross-chart");
+  container.selectAll("*").remove();
+  const width = chartWidth("#license-cross-chart");
+  const height = 430;
+  const margin = { top: 24, right: 30, bottom: 70, left: 76 };
+  const innerWidth = Math.max(96, width - margin.left - margin.right);
+  const innerHeight = height - margin.top - margin.bottom;
+  const svg = container.append("svg").attr("width", width).attr("height", height).attr("viewBox", `0 0 ${width} ${height}`);
+  if (!data.length) {
+    renderSvgMessage(svg, width, height, "Sem licenças no recorte atual.");
+    renderLegendItems(els.licenseCrossLegend, [], null);
+    return;
+  }
+  const x = d3.scaleLog().domain(logDomain(data.map(item => item.medianStars))).nice().range([0, innerWidth]);
+  const y = d3.scaleLinear().domain([0, 100]).range([innerHeight, 0]);
+  const radius = d3.scaleSqrt().domain([1, d3.max(data, item => item.count) || 1]).range([6, 30]);
+  const domains = Array.from(new Set(data.map(item => item.topDomain)));
+  const color = d3.scaleOrdinal(domains, d3.schemeTableau10);
+  const g = svg.append("g").attr("transform", `translate(${margin.left},${margin.top})`);
+  g.append("g").attr("class", "grid").call(d3.axisLeft(y).ticks(5).tickSize(-innerWidth).tickFormat("")).call(group => group.select(".domain").remove());
+  g.append("g").attr("class", "axis").attr("transform", `translate(0,${innerHeight})`).call(d3.axisBottom(x).ticks(6, "~s"));
+  g.append("g").attr("class", "axis").call(d3.axisLeft(y).ticks(5));
+  g.selectAll("circle")
+    .data(data)
+    .join("circle")
+    .attr("cx", item => x(Math.max(1, item.medianStars)))
+    .attr("cy", item => y(item.activityScore))
+    .attr("r", item => radius(item.count))
+    .attr("fill", item => color(item.topDomain))
+    .attr("fill-opacity", 0.72)
+    .on("mousemove", (event, item) => showTooltip(event, `<strong>${escapeHtml(item.license)}</strong><br>${formatNumber.format(item.count)} projetos<br>Mediana: ${formatNumber.format(item.medianStars)} estrelas<br>Índice médio: ${item.activityScore}<br>Domínio: ${escapeHtml(item.topDomain)}`))
+    .on("mouseleave", hideTooltip);
+  g.append("text").attr("x", innerWidth / 2).attr("y", innerHeight + 52).attr("text-anchor", "middle").attr("fill", "#5c6865").text("Mediana de estrelas por licença (log)");
+  g.append("text").attr("x", -innerHeight / 2).attr("y", -52).attr("transform", "rotate(-90)").attr("text-anchor", "middle").attr("fill", "#5c6865").text("Índice médio de atividade/adoção");
+  renderLegendItems(els.licenseCrossLegend, domains, color, value => value, domain => applyCrossFilters({ domain }), state.domain);
 }
 
 function renderContributorStory() {
@@ -2510,6 +3099,74 @@ function licenseSummary() {
   ).sort((a, b) => b.count - a.count || a.license.localeCompare(b.license));
 }
 
+function licenseCrossData() {
+  return Array.from(
+    d3.group(state.filtered, repository => normalizeLicense(repository.license)),
+    ([license, repositories]) => {
+      const domainCounts = d3.rollups(
+        repositories.flatMap(repository => repository.domains),
+        values => values.length,
+        domain => domain
+      ).sort((a, b) => b[1] - a[1]);
+      return {
+        license,
+        licenseLabel: shortLicense(license),
+        licenseCross: true,
+        count: repositories.length,
+        medianStars: Math.round(d3.median(repositories, repository => repository.stars) || 0),
+        activityScore: Math.round(d3.mean(repositories, repository => repository.healthScore) || 0),
+        topDomain: domainCounts[0]?.[0] || "Sem domínio"
+      };
+    }
+  ).sort((a, b) => b.count - a.count);
+}
+
+function outlierData() {
+  if (state.outlierMode === "concentration") return concentrationOutliers();
+  if (state.outlierMode === "activity") {
+    return state.filtered
+      .map(repository => ({
+        ...repository,
+        outlierValue: repository.healthScore,
+        outlierLabel: `índice ${repository.healthScore}/100 · ${repository.healthLabel}`
+      }))
+      .sort((a, b) => b.outlierValue - a.outlierValue || b.stars - a.stars);
+  }
+  const logs = state.filtered.map(repository => Math.log1p(repository.stars));
+  const median = d3.median(logs) || 0;
+  const deviations = logs.map(value => Math.abs(value - median));
+  const mad = d3.median(deviations) || 1;
+  return state.filtered
+    .map(repository => {
+      const robustScore = (Math.log1p(repository.stars) - median) / (1.4826 * mad);
+      return {
+        ...repository,
+        outlierValue: Math.max(0, robustScore),
+        outlierLabel: `${robustScore.toFixed(1)} desvios robustos · ${formatNumber.format(repository.stars)} estrelas`
+      };
+    })
+    .sort((a, b) => b.outlierValue - a.outlierValue || b.stars - a.stars);
+}
+
+function concentrationOutliers() {
+  const filteredNames = new Set(state.filtered.map(repository => repository.fullName));
+  const repositoryByName = new Map(state.repositories.map(repository => [repository.fullName, repository]));
+  return Array.from(
+    d3.group(contributorScope().filter(item => filteredNames.has(item.repository)), item => item.repository),
+    ([fullName, contributors]) => {
+      const ordered = contributors.slice().sort((a, b) => b.commits - a.commits);
+      const total = d3.sum(ordered, item => item.commits) || 1;
+      const topFiveShare = d3.sum(ordered.slice(0, 5), item => item.commits) / total;
+      const repository = repositoryByName.get(fullName) ?? { fullName, stars: 0, forks: 0 };
+      return {
+        ...repository,
+        outlierValue: topFiveShare * 100,
+        outlierLabel: `${formatPercent.format(topFiveShare)} dos commits nos 5 maiores · amostra de ${contributors.length} contas`
+      };
+    }
+  ).sort((a, b) => b.outlierValue - a.outlierValue);
+}
+
 function normalizeLicense(value) {
   const license = String(value || "").trim();
   return !license || /^(sem licen[cç]a|no license|none|n\/a|unknown|noassertion)$/i.test(license)
@@ -2550,6 +3207,15 @@ function growthData() {
     };
   }).filter(item => !Number.isNaN(item.dateObj.getTime()));
   return { rows, cohortSize: cohort.length };
+}
+
+function snapshotMomentumData() {
+  const metric = state.growthMetric === "forks" ? "forks" : "stars";
+  return calculateSnapshotMomentum(
+    state.repositorySnapshots ?? [],
+    state.filtered.map(repository => repository.fullName),
+    metric
+  );
 }
 
 function growthSummary(growth) {
@@ -2675,7 +3341,9 @@ function buildMonthlyContributionSummary(monthlyRows, repository = "all") {
         additions: 0,
         removals: 0,
         changesAvailable: false,
-        changesEstimated: false
+        changesEstimated: false,
+        exactChangeCommits: 0,
+        estimatedChangeCommits: 0
       });
     }
 
@@ -2685,6 +3353,8 @@ function buildMonthlyContributionSummary(monthlyRows, repository = "all") {
     month.removals += removals;
     month.changesAvailable ||= exactChanges || estimatedChanges;
     month.changesEstimated ||= estimatedChanges;
+    if (exactChanges) month.exactChangeCommits += commits;
+    if (estimatedChanges) month.estimatedChangeCommits += commits;
   }
 
   return Array.from(grouped.values())

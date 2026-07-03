@@ -20,11 +20,23 @@ export const state = {
   natureGroup: "contributors",
   contributorType: "all",
   compareRepositories: [],
+  favoriteComparisons: [],
+  presentationMode: false,
+  highContrast: false,
   growthMetric: "stars",
+  outlierMode: "popularity",
+  healthWeights: {
+    recency: 30,
+    issues: 25,
+    forks: 25,
+    activity: 20
+  },
   tablePage: 1,
   tablePageSize: 25,
   metadata: {}
 };
+
+export const defaultHealthWeights = Object.freeze({ recency: 30, issues: 25, forks: 25, activity: 20 });
 
 export const formatNumber = new Intl.NumberFormat("pt-BR");
 export const formatCompact = new Intl.NumberFormat("pt-BR", {

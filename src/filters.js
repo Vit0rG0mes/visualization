@@ -27,6 +27,14 @@ export function readUrlState(repositories) {
     secondaryDomain: params.get("domain2") || "all",
     language: params.get("language") || "all",
     contributorType: params.get("accounts") || "all",
+    outlierMode: params.get("outlier") || "popularity",
+    presentationMode: params.get("present") === "1",
+    healthWeights: {
+      recency: urlWeight(params.get("wr"), 30),
+      issues: urlWeight(params.get("wi"), 25),
+      forks: urlWeight(params.get("wf"), 25),
+      activity: urlWeight(params.get("wa"), 20)
+    },
     compareRepositories: Array.from(new Set(comparison)).slice(0, 3)
   };
 }
@@ -38,9 +46,22 @@ export function writeUrlState(filters) {
   if (filters.secondaryDomain !== "all") params.set("domain2", filters.secondaryDomain);
   if (filters.language !== "all") params.set("language", filters.language);
   if (filters.contributorType !== "all") params.set("accounts", filters.contributorType);
+  if (filters.outlierMode !== "popularity") params.set("outlier", filters.outlierMode);
+  if (filters.presentationMode) params.set("present", "1");
+  const defaultWeights = { recency: 30, issues: 25, forks: 25, activity: 20 };
+  const weightParams = { recency: "wr", issues: "wi", forks: "wf", activity: "wa" };
+  for (const [key, param] of Object.entries(weightParams)) {
+    if (Number(filters.healthWeights?.[key]) !== defaultWeights[key]) params.set(param, String(filters.healthWeights[key]));
+  }
   filters.compareRepositories.forEach((name, index) => params.set(`repo${index + 1}`, name));
   const query = params.toString();
   window.history.replaceState(null, "", `${window.location.pathname}${query ? `?${query}` : ""}${window.location.hash}`);
+}
+
+function urlWeight(value, fallback) {
+  if (value === null || value === "") return fallback;
+  const number = Number(value);
+  return Number.isFinite(number) && number >= 0 && number <= 100 ? number : fallback;
 }
 
 export function uniqueSorted(values) {

@@ -23,6 +23,8 @@
       <div class="hero-actions">
         <a href="#story" class="primary-link">Começar narrativa</a>
         <a href="#ecosystem" class="secondary-link">Explorar gráficos</a>
+        <button id="presentation-toggle" type="button" class="secondary-link mode-button" aria-pressed="false">Modo apresenta&ccedil;&atilde;o</button>
+        <button id="contrast-toggle" type="button" class="secondary-link mode-button" aria-pressed="false">Alto contraste</button>
       </div>
     </header>
 
@@ -32,6 +34,16 @@
       <a href="#contributors">Contribuidores</a>
       <a href="#ranking">Ranking</a>
     </nav>
+
+    <details class="mobile-chapter-menu">
+      <summary><span>Capítulo</span><strong id="mobile-chapter-current">Visão geral</strong></summary>
+      <nav aria-label="Capítulos da análise no celular">
+        <a href="#overview">Visão geral</a>
+        <a href="#ecosystem">Ecossistema</a>
+        <a href="#contributors">Contribuidores</a>
+        <a href="#ranking">Ranking</a>
+      </nav>
+    </details>
 
     <main id="overview">
       <section class="infographic-strip" data-chapter="overview" aria-label="Resumo do dataset">
@@ -53,7 +65,7 @@
         </article>
         <article>
           <span id="healthy-projects">-</span>
-          <small>com saúde alta</small>
+          <small>com índice alto</small>
         </article>
       </section>
 
@@ -89,6 +101,42 @@
           Contribuidores: <a href="https://docs.github.com/rest/metrics/statistics">GitHub REST API</a>. A preparação é
           local. Rankings são retratos temporais; correlações não indicam causalidade e linhas não comprovam refatoração.
         </p>
+      </section>
+
+      <section class="data-quality-panel" data-chapter="overview" aria-labelledby="data-quality-title">
+        <div class="panel-heading">
+          <div>
+            <p class="eyebrow">Qualidade dos dados</p>
+            <h2 id="data-quality-title">Cobertura, aus&ecirc;ncias e proveni&ecirc;ncia</h2>
+            <p>Os indicadores abaixo s&atilde;o recalculados para o recorte atual e distinguem fonte original, prepara&ccedil;&atilde;o local e dados ausentes.</p>
+          </div>
+        </div>
+        <div class="quality-kpis" aria-label="Resumo da qualidade dos dados">
+          <article><strong id="quality-field-coverage">-</strong><span>cobertura m&eacute;dia dos campos</span></article>
+          <article><strong id="quality-missing-license">-</strong><span>sem licen&ccedil;a identificada</span></article>
+          <article><strong id="quality-contributor-coverage">-</strong><span>contribuidores com linhas</span></article>
+          <article><strong id="quality-snapshot-count">-</strong><span>snapshots preservados</span></article>
+        </div>
+        <div class="quality-layout">
+          <div class="quality-fields">
+            <h3>Cobertura por campo</h3>
+            <div class="quality-table-wrap">
+              <table>
+                <thead><tr><th>Campo</th><th>Presentes</th><th>Ausentes</th><th>Cobertura</th></tr></thead>
+                <tbody id="quality-fields-body"></tbody>
+              </table>
+            </div>
+          </div>
+          <div class="quality-provenance">
+            <h3>Origem registrada</h3>
+            <dl>
+              <div><dt>Reposit&oacute;rios</dt><dd id="quality-repository-source">-</dd></div>
+              <div><dt>Contribuidores</dt><dd id="quality-contributor-source">-</dd></div>
+              <div><dt>Snapshots</dt><dd id="quality-snapshot-source">-</dd></div>
+            </dl>
+            <p id="quality-scope-note" class="scope-note"></p>
+          </div>
+        </div>
       </section>
 
       <section class="story-intro" data-chapter="overview">
@@ -202,10 +250,16 @@
             <div>
               <button id="export-csv" type="button">CSV</button>
               <button id="export-png" type="button">PNG</button>
+              <button id="copy-analysis-link" type="button">Copiar link</button>
             </div>
             <span id="export-status" class="visually-hidden" aria-live="polite"></span>
           </div>
         </section>
+
+        <div id="active-filters" class="active-filters" aria-live="polite" hidden>
+          <div id="active-filter-chips" class="filter-chips" aria-label="Filtros ativos"></div>
+          <button id="clear-filters" type="button">Limpar filtros</button>
+        </div>
 
         <section class="visual-grid">
           <article class="panel wide comparison-panel">
@@ -216,10 +270,20 @@
                 <p>As barras mostram índices relativos; os valores reais aparecem no resumo de cada projeto.</p>
               </div>
               <div class="comparison-controls">
-                <label>Repositório 1<select id="compare-repo-1"></select></label>
-                <label>Repositório 2<select id="compare-repo-2"></select></label>
-                <label>Repositório 3<select id="compare-repo-3"><option value="">Nenhum</option></select></label>
+                <label>Repositório 1<input id="compare-repo-1" type="text" list="comparison-repositories" autocomplete="off" spellcheck="false" /></label>
+                <label>Repositório 2<input id="compare-repo-2" type="text" list="comparison-repositories" autocomplete="off" spellcheck="false" /></label>
+                <label>Repositório 3<input id="compare-repo-3" type="text" list="comparison-repositories" autocomplete="off" spellcheck="false" placeholder="Nenhum" /></label>
+                <datalist id="comparison-repositories"></datalist>
+                <span id="comparison-status" class="visually-hidden" aria-live="polite"></span>
               </div>
+            </div>
+            <div class="comparison-favorites" aria-label="Conjuntos favoritos de reposit&oacute;rios">
+              <label>Nome do conjunto<input id="favorite-name" type="text" maxlength="48" autocomplete="off" placeholder="Ex.: Ferramentas de IA" /></label>
+              <button id="save-favorite-set" type="button">Salvar conjunto</button>
+              <label>Conjuntos salvos<select id="favorite-set"><option value="">Selecione um favorito</option></select></label>
+              <button id="load-favorite-set" type="button" disabled>Carregar</button>
+              <button id="delete-favorite-set" type="button" disabled>Excluir</button>
+              <span id="favorite-status" class="visually-hidden" aria-live="polite"></span>
             </div>
             <div id="repository-comparison"></div>
             <div id="comparison-details" class="comparison-details"></div>
@@ -315,18 +379,46 @@
             <div id="owner-type-chart"></div>
           </article>
 
-          <article class="panel">
+          <article class="panel wide health-panel">
             <div class="panel-heading">
               <div>
-                <h2>Saúde dos projetos</h2>
-                <p>Índice composto por recência, último push, issues por estrela e forks.</p>
+                <h2>Índice de atividade e adoção</h2>
+                <p>Combine recência, atividade, pressão de issues e reutilização para testar diferentes leituras do ecossistema.</p>
               </div>
             </div>
-            <div id="health-chart"></div>
-            <div class="estimation-note">
+            <div class="health-layout">
+              <div class="health-chart-column"><div id="health-chart"></div></div>
+              <fieldset class="weight-controls">
+                <legend>Pesos do índice</legend>
+                <label><span>Recência <output id="weight-recency-output">30%</output></span><input id="weight-recency" data-health-weight="recency" type="range" min="0" max="100" step="5" value="30" /></label>
+                <label><span>Issues por estrela <output id="weight-issues-output">25%</output></span><input id="weight-issues" data-health-weight="issues" type="range" min="0" max="100" step="5" value="25" /></label>
+                <label><span>Forks / adoção <output id="weight-forks-output">25%</output></span><input id="weight-forks" data-health-weight="forks" type="range" min="0" max="100" step="5" value="25" /></label>
+                <label><span>Último push <output id="weight-activity-output">20%</output></span><input id="weight-activity" data-health-weight="activity" type="range" min="0" max="100" step="5" value="20" /></label>
+                <div class="weight-footer"><span id="weight-total">Total: 100</span><button id="reset-health-weights" type="button">Restaurar pesos</button></div>
+              </fieldset>
+            </div>
+            <div class="estimation-note" id="health-formula-note">
               <strong>Fórmula:</strong>
               <span>30% recência da atualização, 25% issues por estrela, 25% forks e 20% atividade pelo último push.</span>
             </div>
+          </article>
+
+          <article class="panel wide outlier-panel">
+            <div class="panel-heading">
+              <div>
+                <p class="eyebrow">Explorador de outliers</p>
+                <h2>Projetos fora do padrão</h2>
+                <p>Compare popularidade excepcional, atividade/adoção e concentração de commits nos maiores contribuidores.</p>
+              </div>
+              <div class="segmented-control" role="group" aria-label="Dimensão dos outliers">
+                <button type="button" data-outlier-mode="popularity" aria-pressed="true">Popularidade</button>
+                <button type="button" data-outlier-mode="activity" aria-pressed="false">Atividade</button>
+                <button type="button" data-outlier-mode="concentration" aria-pressed="false">Concentração</button>
+              </div>
+            </div>
+            <div class="confidence-row"><span id="outlier-confidence" class="confidence-badge"></span></div>
+            <div id="outlier-chart"></div>
+            <div id="outlier-details" class="outlier-details"></div>
           </article>
 
           <article class="panel wide growth-panel">
@@ -343,6 +435,17 @@
             </div>
             <div id="growth-chart"></div>
             <div id="growth-snapshot-note" class="estimation-note"></div>
+            <div class="snapshot-kpis" aria-label="Mudanças no snapshot mais recente">
+              <article><strong id="snapshot-weekly-gain">-</strong><span>ganho semanal</span></article>
+              <article><strong id="snapshot-rank-movers">-</strong><span>mudanças de ranking</span></article>
+              <article><strong id="snapshot-accelerating">-</strong><span>projetos em aceleração</span></article>
+            </div>
+            <div id="snapshot-movers-wrap" class="snapshot-movers-wrap" hidden>
+              <table>
+                <thead><tr><th>Projeto</th><th>Ganho semanal</th><th>Ranking</th><th>Aceleração</th></tr></thead>
+                <tbody id="snapshot-movers"></tbody>
+              </table>
+            </div>
           </article>
 
           <article class="panel wide license-panel">
@@ -359,7 +462,7 @@
               <article><strong id="top-license">-</strong><span>licen&ccedil;a mais frequente</span></article>
             </div>
             <div class="license-layout">
-              <div id="license-chart"></div>
+              <div class="license-chart-column"><div id="license-chart"></div></div>
               <div class="license-narrative">
                 <section>
                   <h3>Licen&ccedil;a presente</h3>
@@ -375,6 +478,14 @@
                 </section>
               </div>
             </div>
+            <section class="license-cross-section" aria-labelledby="license-cross-title">
+              <div>
+                <h3 id="license-cross-title">Licença × popularidade × domínio × atividade</h3>
+                <p>Bolhas maiores representam mais projetos; a cor identifica o domínio predominante de cada licença.</p>
+              </div>
+              <div id="license-cross-chart"></div>
+              <div id="license-cross-legend" class="story-legend"></div>
+            </section>
           </article>
 
           <section id="contributors" class="contributor-story-panel" data-chapter="contributors" aria-label="Narrativa dos maiores contribuidores">
@@ -439,7 +550,8 @@
                   <div class="chart-heading">
                     <p class="eyebrow">Contribuições em foco</p>
                     <h2 id="contributor-story-title">Onde o trabalho se concentra</h2>
-                    <p id="contributor-story-caption">Volume, concentração, natureza do trabalho e ritmo temporal aparecem em sequência.</p>
+                  <p id="contributor-story-caption">Volume, concentração, natureza do trabalho e ritmo temporal aparecem em sequência.</p>
+                  <span id="contributor-story-confidence" class="confidence-badge" hidden></span>
                   </div>
                   <div id="contributor-story-chart"></div>
                   <div class="story-legend" id="contributor-story-legend"></div>
@@ -576,6 +688,7 @@
                 commits são mensais; adições e remoções podem ser coletadas por mês ou estimadas a partir de totais
                 históricos. Registros sem esses campos não entram nas séries de linhas.
               </span>
+              <span id="timeline-confidence" class="confidence-badge"></span>
             </div>
             <div id="contributor-timeline"></div>
             <div class="story-legend" id="contributor-timeline-legend"></div>
@@ -601,6 +714,7 @@
                 </select>
               </label>
             </div>
+            <div class="confidence-row"><span id="calendar-confidence" class="confidence-badge"></span></div>
             <div id="contributor-calendar"></div>
             <div class="story-legend" id="contributor-calendar-legend"></div>
           </article>
@@ -707,6 +821,7 @@
                 totais por contribuidor são históricos; valores mensais são coletados quando presentes ou
                 estimados pelo peso dos commits. Registros sem linhas ficam fora desta visualização.
               </span>
+              <span id="nature-confidence" class="confidence-badge"></span>
             </div>
             <div id="nature-diverging"></div>
             <div class="story-legend" id="nature-legend"></div>
@@ -730,7 +845,7 @@
                     <th>Stars</th>
                     <th>Forks</th>
                     <th>Issues</th>
-                    <th>Saúde</th>
+                    <th>Atividade/adoção</th>
                     <th>Licença</th>
                   </tr>
                 </thead>

@@ -20,16 +20,25 @@ O JavaScript do navegador esta separado por responsabilidade:
 - `src/data.js`: carregamento, deduplicacao defensiva e normalizacao.
 - `src/state.js`: estado compartilhado e formatadores.
 - `src/filters.js`: debounce, filtros e paginacao.
+- `src/favorites.js`: persistencia local dos conjuntos de comparacao.
 - `src/charts.js`: calculos analiticos, resumos e renderizadores D3.
 - `src/tooltips.js`: tooltips, foco e acessibilidade das marcas SVG.
 
 A busca usa debounce de 280 ms. Os graficos sao renderizados por `IntersectionObserver` quando se aproximam da area visivel e atualizados somente quando estao visiveis novamente. A tabela mostra 25 registros por pagina.
 
-Pontos, barras, celulas e fatias podem receber foco por teclado. `Enter` ou `Espaco` exibe os detalhes; pontos com URL abrem o repositorio. Cada grafico tambem possui um resumo textual visivel e associado por `aria-describedby`.
+Pontos, barras, celulas e fatias usam foco itinerante: `Tab` entra uma vez no grafico, setas percorrem as marcas, `Home`/`End` saltam para as extremidades e `Enter` ou `Espaco` ativa a marca. Pontos com URL abrem o repositorio. Cada grafico tambem possui um resumo textual visivel e associado por `aria-describedby`.
 
 A navegacao organiza a leitura em quatro capitulos: Visao geral, Ecossistema, Contribuidores e Ranking. Dois repositorios sao comparados por padrao e um terceiro pode ser adicionado. Barras de dominio e linguagem, celulas dos mapas de calor e legendas de dominio, linguagem e tipo de conta atuam como filtros cruzados.
 
-Busca, dominios, linguagem, tipo de conta e os tres repositorios de comparacao sao gravados na query string. Assim, recarregar ou compartilhar a URL restaura o mesmo recorte.
+Em telas pequenas, os capitulos usam um seletor recolhivel que fecha depois da navegacao. O botao `Copiar link` usa a URL sincronizada para compartilhar filtros, comparadores, modo de outliers e pesos do indice.
+
+O modo apresentacao preserva apenas o resumo e as narrativas de visao geral e contribuidores, ocultando filtros e paineis tecnicos. Ele e salvo no parametro `present=1`, portanto tambem pode ser compartilhado. O alto contraste e uma preferencia local do navegador. Quando o sistema informa `prefers-reduced-motion`, transicoes, rolagem suave e paralaxe sao desativadas.
+
+Os tres comparadores usam autocomplete sobre a lista de `fullName`, validam valores inexistentes e impedem repositorios duplicados. Filtros ativos aparecem como chips removiveis; `Limpar filtros` restaura busca, dominios, linguagem e tipo de conta sem alterar a comparacao escolhida.
+
+Comparacoes com dois ou tres repositorios podem ser salvas por nome como favoritos. Esses conjuntos ficam somente no `localStorage` do navegador atual; ao carregar um favorito, a selecao volta a ser registrada na URL compartilhavel.
+
+Busca, dominios, linguagem, tipo de conta, os tres repositorios de comparacao, modo de outliers e pesos do indice sao gravados na query string. Assim, recarregar ou compartilhar a URL restaura o mesmo recorte.
 
 O recorte filtrado pode ser exportado pelos botoes `CSV` e `PNG`. O CSV inclui todas as linhas e metadados da coleta; a imagem gera um resumo com KPIs e os 14 primeiros repositorios. Campos iniciados por caracteres de formula recebem protecao antes de serem gravados no CSV.
 
@@ -97,16 +106,28 @@ KPIs gerais, tabela, dispersoes e correlacoes contam cada `fullName` uma unica v
 
 O mapa de sobreposicao cruza os 10 dominios mais frequentes e conta quantos repositorios pertencem a cada par. A base atual contem 147 projetos multidominio. Selecionar uma celula aplica simultaneamente os dois dominios.
 
-### Indicador de saude
+### Indice de atividade e adocao
 
-O indice de saude varia de 0 a 100 e combina:
+O indice de atividade e adocao varia de 0 a 100 e combina:
 
 - 30% de recencia da ultima atualizacao, caindo linearmente ate zero em 730 dias;
 - 25% de issues por estrela, em que taxas menores recebem notas maiores e o percentil 90 da base define o limite;
 - 25% de forks, normalizados em escala logaritmica pelo maior valor da base;
 - 20% de atividade pelo ultimo `push`, caindo linearmente ate zero em 365 dias.
 
-Notas a partir de 75 sao marcadas como `Saudavel`, de 50 a 74 como `Atencao` e abaixo de 50 como `Risco`. O indicador e comparativo e nao substitui uma avaliacao de manutencao, seguranca ou qualidade do codigo.
+Notas a partir de 75 sao marcadas como `Alta atividade/adocao`, de 50 a 74 como `Atividade intermediaria` e abaixo de 50 como `Baixa atividade/adocao`. O indicador e comparativo e nao substitui uma avaliacao de manutencao, seguranca ou qualidade do codigo.
+
+Os quatro pesos podem ser ajustados na pagina. A soma bruta nao precisa ser 100: cada valor e dividido pela soma atual antes do calculo. Se todos chegarem a zero, o ultimo controle alterado recebe peso minimo. Os parametros `wr`, `wi`, `wf` e `wa` preservam respectivamente recencia, issues, forks e ultimo push no link compartilhado.
+
+### Outliers
+
+O explorador usa tres definicoes:
+
+- popularidade: desvio robusto sobre `log(1 + estrelas)`, usando mediana e desvio absoluto mediano;
+- atividade/adocao: maior valor do indice composto com os pesos ativos;
+- concentracao: participacao dos cinco maiores contribuidores nos commits da amostra do repositorio.
+
+Concentracao recebe confianca moderada porque considera no maximo os 100 maiores contribuidores coletados por repositorio.
 
 ### Crescimento por snapshots
 
@@ -114,11 +135,15 @@ Notas a partir de 75 sao marcadas como `Saudavel`, de 50 a 74 como `Atencao` e a
 
 Com apenas um snapshot, a pagina apresenta uma linha de base e nao calcula variacao. O workflow `.github/workflows/repository-snapshots.yml` executa a coleta toda segunda-feira e grava o resultado no repositorio; tambem pode ser iniciado manualmente.
 
+Com dois snapshots, o painel calcula ganho semanal normalizando a diferenca pelo numero de dias entre coletas e compara a posicao de cada projeto na mesma coorte. Com tres ou mais, aceleracao e a diferenca entre os dois ganhos semanais consecutivos. Nenhum desses valores e estimado enquanto o numero minimo de snapshots nao existir.
+
 ### Licencas
 
 A distribuicao de licencas conta cada `fullName` uma vez e responde aos filtros globais. Valores vazios, `No License`, `None`, `N/A`, `Unknown` e `NOASSERTION` sao reunidos em `Sem licenca`.
 
 Ausencia de licenca nao significa dominio publico nem permissao implicita de reutilizacao. O painel trata esse grupo separadamente e evita inferir direitos juridicos a partir da popularidade ou da visibilidade do codigo.
+
+O cruzamento de licencas usa mediana de estrelas para reduzir a influencia de projetos extremos, media do indice de atividade/adocao, quantidade de projetos e dominio predominante. Cada repositorio participa uma vez no grupo de sua licenca normalizada.
 
 ### Contribuidores
 
@@ -131,6 +156,8 @@ Cada contribuidor recebe uma classificacao de completude:
 - `commits_only`: adicoes/remocoes ausentes; o registro participa apenas das analises de commits.
 
 Valores ausentes nao sao convertidos em zero. Perfis como expansao, limpeza ou refatoracao so sao calculados quando `changesAvailable` e verdadeiro.
+
+Series de linhas mensais exibem um selo de confianca. Commits sao observados diretamente; adicoes e remocoes sao classificadas como observadas quando existem no mes ou estimadas quando totais historicos sao distribuidos pela participacao mensal de commits. Confianca alta exige pelo menos 80% dos commits cobertos por linhas mensais observadas, moderada exige 40% e valores inferiores recebem confianca baixa.
 
 As contas sao separadas em `person`, `bot` e `automation`. Coletas novas priorizam `author.type` retornado pelo GitHub. Fontes legadas sem esse campo usam uma heuristica documentada por login: sufixos como `bot` identificam bots, enquanto termos como `autoroll`, `gardener`, `automation` e `automerge` identificam contas de automacao. O campo `accountTypeSource` registra se a origem foi `github`, `source` ou `heuristic`.
 
@@ -150,6 +177,8 @@ A cobertura de linhas e publicada em tres perspectivas:
 - `watchers` nao participa da matriz de correlacao porque, nesta fonte, frequentemente replica a contagem de estrelas.
 
 O painel separa a data do dataset de repositorios, a coleta dos contribuidores e a preparacao local. Quantidade de registros unicos, fontes e limitacoes tambem aparecem diretamente na pagina.
+
+O painel de qualidade recalcula, para o recorte filtrado, a cobertura de descricao, homepage, datas, linguagem, licenca, tipo de proprietario e topicos. Ele tambem mostra cobertura de linhas dos contribuidores, quantidade de snapshots e a proveniencia declarada em cada payload. Reprocessar um JSON preserva sua fonte original em vez de substituir a origem pelo caminho do proprio arquivo.
 
 ## Saidas
 

@@ -1,7 +1,7 @@
 {
-  "source": "data\\top-contributors-history.json",
+  "source": "GitHub REST API /repos/{owner}/{repo}/stats/contributors",
   "collectedAt": "2026-07-01T14:05:37.852Z",
-  "generatedAt": "2026-07-02T00:55:46.444Z",
+  "generatedAt": "2026-07-02T21:56:56.712Z",
   "totalRows": 12442,
   "contributorCount": 966,
   "contributorChangesCount": 677,

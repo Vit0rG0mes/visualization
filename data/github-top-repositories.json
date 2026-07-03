@@ -1,7 +1,7 @@
 {
-  "source": "data\\github-top-repositories.json",
+  "source": "https://www.kaggle.com/datasets/muhammadaqeelkabir/top-github-repositories",
   "collectedAt": "2026-04",
-  "generatedAt": "2026-07-02T00:55:46.405Z",
+  "generatedAt": "2026-07-02T21:56:56.677Z",
   "totalRows": 800,
   "uniqueRepositoryCount": 800,
   "duplicateRowsRemoved": 0,

@@ -126,6 +126,10 @@ function readSource(filePath) {
   return readCsv(absolutePath);
 }
 
+function sourceProvenance(source, fallback) {
+  return !Array.isArray(source) && source?.source ? source.source : fallback;
+}
+
 function normalizeRepository(row) {
   const fullName = String(firstValue(row, "fullName", "Full Name", "full_name")).trim();
   const createdAt = parseDate(firstValue(row, "createdAt", "Created At", "created_at"));
@@ -218,6 +222,7 @@ async function appendRepositorySnapshot(repositories, collectedAt, source) {
 
 async function prepareRepositories(sourcePath) {
   const source = readSource(sourcePath);
+  const provenance = sourceProvenance(source, sourcePath);
   const sourceRows = Array.isArray(source) ? source : source.repositories ?? [];
   const byFullName = new Map();
   for (const row of sourceRows) {
@@ -236,7 +241,7 @@ async function prepareRepositories(sourcePath) {
       issueRate: repository.stars > 0 ? repository.issues / repository.stars : 0
     }));
   const payload = {
-    source: sourcePath,
+    source: provenance,
     collectedAt: values["repository-collected-at"] || (Array.isArray(source) ? null : source.collectedAt || null),
     generatedAt: new Date().toISOString(),
     totalRows: sourceRows.length,
@@ -246,7 +251,7 @@ async function prepareRepositories(sourcePath) {
     repositories
   };
   await writePayload("github-top-repositories", "REPOSITORY_DATA", payload);
-  await appendRepositorySnapshot(repositories, payload.collectedAt || payload.generatedAt, sourcePath);
+  await appendRepositorySnapshot(repositories, payload.collectedAt || payload.generatedAt, provenance);
   console.log(`Repositorios: ${sourceRows.length} linhas -> ${repositories.length} fullName unicos.`);
 }
 
@@ -393,8 +398,9 @@ function normalizeExistingContributors(records) {
   });
 }
 
-async function prepareContributors(sourcePath) {
+async function prepareContributors(sourcePath, sourceLabel = null) {
   const source = readSource(sourcePath);
+  const provenance = sourceLabel || sourceProvenance(source, sourcePath);
   const prepared = prepareContributorRecords(source);
   const contributors = normalizeExistingContributors(prepared.contributors).sort((a, b) => b.commits - a.commits);
   const repositoryMap = new Map();
@@ -427,7 +433,7 @@ async function prepareContributors(sourcePath) {
     repositoryCount: repositories.length
   };
   const payload = {
-    source: sourcePath,
+    source: provenance,
     collectedAt: prepared.collectedAt || (Array.isArray(source) ? null : source.collectedAt || source.generatedAt || null),
     generatedAt: new Date().toISOString(),
     totalRows: prepared.totalRows,
@@ -486,7 +492,7 @@ async function collectRepositorySnapshot() {
 
   if (values.offline) {
     const sourceDate = Array.isArray(source) ? null : source.collectedAt || source.generatedAt;
-    await appendRepositorySnapshot(repositories, sourceDate || new Date().toISOString(), sourcePath);
+    await appendRepositorySnapshot(repositories, sourceDate || new Date().toISOString(), sourceProvenance(source, sourcePath));
     return;
   }
 
@@ -595,7 +601,7 @@ async function collectContributors() {
   await mkdir(dirname(rawOutput), { recursive: true });
   writeCsv(rawOutput, rows);
   console.log(`CSV coletado em ${rawOutput}.`);
-  await prepareContributors(rawOutput);
+  await prepareContributors(rawOutput, "GitHub REST API /search/repositories + /repos/{owner}/{repo}/stats/contributors");
 }
 
 async function main() {
